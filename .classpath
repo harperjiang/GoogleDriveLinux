@@ -2,7 +2,6 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="libs/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-1.17.0-rc.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-jackson2-1.17.0-rc.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-java6-1.17.0-rc.jar"/>
@@ -23,5 +22,10 @@
 	<classpathentry kind="lib" path="libs/servlet-api.jar"/>
 	<classpathentry kind="lib" path="libs/transaction-api-1.1.jar"/>
 	<classpathentry kind="lib" path="libs/commons-collections4-4.0.jar"/>
+	<classpathentry kind="lib" path="libs/jcl-over-slf4j-1.7.5.jar"/>
+	<classpathentry kind="lib" path="libs/logback-access-1.0.13.jar"/>
+	<classpathentry kind="lib" path="libs/logback-classic-1.0.13.jar"/>
+	<classpathentry kind="lib" path="libs/logback-core-1.0.13.jar"/>
+	<classpathentry kind="lib" path="libs/slf4j-api-1.7.5.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
