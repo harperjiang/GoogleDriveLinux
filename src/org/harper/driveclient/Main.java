@@ -16,7 +16,7 @@ public class Main {
 		File localRoot = new File(Configuration.getLocalRoot());
 		Snapshot snapshotRoot = service.snapshot().get();
 
-		service.upload().upload("root", new File("./output/libs"));
+		service.transmit().upload("root", new File("./output/libs"));
 
 		service.snapshot().make();
 	}

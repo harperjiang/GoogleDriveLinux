@@ -2,12 +2,10 @@ package org.harper.driveclient;
 
 import org.harper.driveclient.change.ChangeService;
 import org.harper.driveclient.change.DefaultChangeService;
-import org.harper.driveclient.download.DefaultDownloadService;
-import org.harper.driveclient.download.DownloadService;
 import org.harper.driveclient.snapshot.DefaultSnapshotService;
 import org.harper.driveclient.snapshot.SnapshotService;
-import org.harper.driveclient.upload.DefaultUploadService;
-import org.harper.driveclient.upload.UploadService;
+import org.harper.driveclient.transmit.DefaultTransmitService;
+import org.harper.driveclient.transmit.TransmitService;
 
 import com.google.api.services.drive.Drive;
 
@@ -27,12 +25,8 @@ public class Services {
 		return new DefaultSnapshotService(drive);
 	}
 
-	public DownloadService download() {
-		return new DefaultDownloadService(drive);
-	}
-	
-	public UploadService upload() {
-		return new DefaultUploadService(drive);
+	public TransmitService transmit() {
+		return new DefaultTransmitService(drive);
 	}
 
 }
