@@ -23,7 +23,7 @@ public class DriveClientFactory {
 	private static final String APPLICATION_NAME = "Harper-GoogleDriveClient-1.0";
 
 	/** Directory to store user credentials. */
-	private static final java.io.File DATA_STORE_DIR = new java.io.File(
+	public static final java.io.File DATA_STORE_DIR = new java.io.File(
 			System.getProperty("user.home"), ".google_drive_client");
 
 	/**

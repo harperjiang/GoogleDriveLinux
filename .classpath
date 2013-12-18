@@ -22,5 +22,6 @@
 	<classpathentry kind="lib" path="libs/jsr305-1.3.9.jar"/>
 	<classpathentry kind="lib" path="libs/servlet-api.jar"/>
 	<classpathentry kind="lib" path="libs/transaction-api-1.1.jar"/>
+	<classpathentry kind="lib" path="libs/commons-collections4-4.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,4 +1,5 @@
 GoogleDriveLinux
 ================
 
-Google Drive for Linux written in Java
+Google Drive for Linux written in Java.
+
