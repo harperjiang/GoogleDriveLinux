@@ -11,7 +11,7 @@ public interface ChangeService {
 
 	public List<ChangeRecord> compare(File localRoot, String remoteRoot,
 			Snapshot snapshot) throws IOException;
-	
-	public Map<String,String> remoteMd5(String remoteRoot) throws IOException;
-	
+
+	public Map<String, String> remoteMd5() throws IOException;
+
 }

@@ -8,5 +8,5 @@ public interface Constants {
 
 	String EXTENSION_GDOCS = ".gdoc";
 
-	String DIR_ROOT = "root";
+	String FOLDER_ROOT = "root";
 }

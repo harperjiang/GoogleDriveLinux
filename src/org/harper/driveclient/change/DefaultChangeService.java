@@ -1,6 +1,5 @@
 package org.harper.driveclient.change;
 
-import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -20,6 +19,7 @@ import org.harper.driveclient.snapshot.Snapshot;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.ChildReference;
+import com.google.api.services.drive.model.File;
 
 public class DefaultChangeService extends DefaultService implements
 		ChangeService {
@@ -29,33 +29,33 @@ public class DefaultChangeService extends DefaultService implements
 	}
 
 	@Override
-	public List<ChangeRecord> compare(File localRoot, String remoteRoot,
-			Snapshot snapshot) throws IOException {
+	public List<ChangeRecord> compare(java.io.File localRoot,
+			String remoteRoot, Snapshot snapshot) throws IOException {
 		List<ChangeRecord> records = new ArrayList<ChangeRecord>();
 
 		// In the case that snapshot is null, make a union. Files online have a
 		// higher priority.
 		if (snapshot == null) {
-			File[] localFolders = localRoot.listFiles(new FileFilter() {
+			java.io.File[] localFolders = localRoot.listFiles(new FileFilter() {
 				@Override
-				public boolean accept(File pathname) {
+				public boolean accept(java.io.File pathname) {
 					return pathname.isDirectory();
 				}
 			});
-			File[] localFiles = localRoot.listFiles(new FileFilter() {
+			java.io.File[] localFiles = localRoot.listFiles(new FileFilter() {
 				@Override
-				public boolean accept(File pathname) {
+				public boolean accept(java.io.File pathname) {
 					return pathname.isFile();
 				}
 			});
-			Map<String, File> localFolderTable = new HashMap<String, File>();
-			Map<String, File> localFileTable = new HashMap<String, File>();
+			Map<String, java.io.File> localFolderTable = new HashMap<String, java.io.File>();
+			Map<String, java.io.File> localFileTable = new HashMap<String, java.io.File>();
 			if (localFolders != null)
-				for (File f : localFolders) {
+				for (java.io.File f : localFolders) {
 					localFolderTable.put(f.getName(), f);
 				}
 			if (localFiles != null)
-				for (File f : localFiles) {
+				for (java.io.File f : localFiles) {
 					localFileTable.put(f.getName(), f);
 				}
 
@@ -130,39 +130,52 @@ public class DefaultChangeService extends DefaultService implements
 		return result;
 	}
 
-	public Map<String, String> remoteMd5(String root) throws IOException {
-		Map<String, String> result = new HashMap<String, String>();
-		com.google.api.services.drive.model.File rootFile = drive.files().get(root).execute();
-		List<ChildReference> children = drive.children().list(root).execute()
-				.getItems();
-		PriorityQueue<String> sorting = new PriorityQueue<String>();
-		for (ChildReference child : children) {
-			com.google.api.services.drive.model.File file = drive.files()
-					.get(child.getId()).execute();
-			if (Constants.TYPE_FOLDER.equals(file.getMimeType())) {
-				result.putAll(remoteMd5(file.getId()));
-				sorting.offer(result.get(file.getId())+file.getTitle());
-			} else if (file.getMimeType().startsWith(
-					Constants.TYPE_GDOCS_PREFIX)) {
-				String md5 = md5Checksum(file.getDefaultOpenWithLink());
-				result.put(file.getId(), md5);
-				sorting.offer(md5+file.getTitle());
-			} else {
-				String md5 = file.getMd5Checksum();
-				result.put(file.getId(), md5);
-				sorting.offer(md5+file.getTitle());
+	public Map<String, String> remoteMd5() throws IOException {
+		Map<String, File> fileContext = new HashMap<String, File>();
+		for (File file : drive.files().list().execute().getItems()) {
+			if (!file.getLabels().getTrashed()) {
+				fileContext.put(file.getId(), file);
 			}
 		}
-		StringBuilder sb = new StringBuilder();
-		sb.append(rootFile.getTitle());
-		while (!sorting.isEmpty()) {
-			sb.append(sorting.poll());
-		}
-		result.put(root, md5Checksum(sb.toString()));
+		Map<String, String> result = new HashMap<String, String>();
+		fileMd5(Constants.FOLDER_ROOT, fileContext, result);
 		return result;
 	}
 
-	protected String md5Checksum(File localFile) throws IOException {
+	protected void fileMd5(String current, Map<String, File> fileContext,
+			Map<String, String> md5Context) throws IOException {
+		File currentFile = fileContext.get(current);
+		List<ChildReference> children = drive.children().list(current)
+				.execute().getItems();
+		PriorityQueue<String> sorting = new PriorityQueue<String>();
+		for (ChildReference child : children) {
+			File childFile = fileContext.get(child.getId());
+			if (Constants.TYPE_FOLDER.equals(childFile.getMimeType())) {
+				fileMd5(childFile.getId(), fileContext, md5Context);
+				sorting.offer(md5Context.get(childFile.getId())
+						+ childFile.getTitle());
+			} else if (childFile.getMimeType().startsWith(
+					Constants.TYPE_GDOCS_PREFIX)) {
+				String md5 = md5Checksum(childFile.getDefaultOpenWithLink());
+				md5Context.put(childFile.getId(), md5);
+				sorting.offer(md5 + childFile.getTitle());
+			} else {
+				String md5 = childFile.getMd5Checksum();
+				md5Context.put(childFile.getId(), md5);
+				sorting.offer(md5 + childFile.getTitle());
+			}
+		}
+		StringBuilder sb = new StringBuilder();
+		if (!Constants.FOLDER_ROOT.equals(current)) {
+			sb.append(currentFile.getTitle());
+		}
+		while (!sorting.isEmpty()) {
+			sb.append(sorting.poll());
+		}
+		md5Context.put(current, md5Checksum(sb.toString()));
+	}
+
+	protected String md5Checksum(java.io.File localFile) throws IOException {
 		try {
 			MessageDigest md5 = MessageDigest.getInstance("md5");
 			byte[] buffer = new byte[10000];

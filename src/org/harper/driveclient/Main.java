@@ -2,8 +2,6 @@ package org.harper.driveclient;
 
 import java.io.File;
 
-import org.harper.driveclient.snapshot.Snapshot;
-
 import com.google.api.services.drive.Drive;
 
 public class Main {
@@ -12,12 +10,11 @@ public class Main {
 		Drive drive = DriveClientFactory.createDrive();
 		Services service = new Services(drive);
 
-		String remoteRoot = "root";
+		String remoteRoot = Constants.FOLDER_ROOT;
 		File localRoot = new File(Configuration.getLocalRoot());
-		Snapshot snapshotRoot = service.snapshot().get();
-
-		service.transmit().upload("root", new File("./output/libs"));
-
+		
+		service.changes().remoteMd5();
+		
 		service.snapshot().make();
 	}
 }
