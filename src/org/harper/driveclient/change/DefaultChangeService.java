@@ -119,9 +119,8 @@ public class DefaultChangeService extends DefaultService implements
 		return records;
 	}
 
-	protected List<com.google.api.services.drive.model.File> list(String root)
-			throws IOException {
-		List<com.google.api.services.drive.model.File> result = new ArrayList<com.google.api.services.drive.model.File>();
+	protected List<File> list(String root) throws IOException {
+		List<File> result = new ArrayList<File>();
 		List<ChildReference> children = drive.children().list(root).execute()
 				.getItems();
 		for (ChildReference c : children) {
@@ -132,10 +131,13 @@ public class DefaultChangeService extends DefaultService implements
 
 	public Map<String, String> remoteMd5() throws IOException {
 		Map<String, File> fileContext = new HashMap<String, File>();
-		for (File file : drive.files().list().execute().getItems()) {
-			if (!file.getLabels().getTrashed()) {
-				fileContext.put(file.getId(), file);
-			}
+		com.google.api.services.drive.Drive.Files.List request = drive.files()
+				.list();
+		request.setQ("trashed = false");
+		
+		request.setPageToken(arg0)
+		for (File file : request.execute().getItems()) {
+			fileContext.put(file.getId(), file);
 		}
 		Map<String, String> result = new HashMap<String, String>();
 		fileMd5(Constants.FOLDER_ROOT, fileContext, result);
@@ -145,11 +147,17 @@ public class DefaultChangeService extends DefaultService implements
 	protected void fileMd5(String current, Map<String, File> fileContext,
 			Map<String, String> md5Context) throws IOException {
 		File currentFile = fileContext.get(current);
+		if (null == currentFile && !Constants.FOLDER_ROOT.equals(current)) {
+			currentFile = drive.files().get(current).execute();
+		}
 		List<ChildReference> children = drive.children().list(current)
 				.execute().getItems();
 		PriorityQueue<String> sorting = new PriorityQueue<String>();
 		for (ChildReference child : children) {
 			File childFile = fileContext.get(child.getId());
+			if (null == childFile) {
+				childFile = drive.files().get(child.getId()).execute();
+			}
 			if (Constants.TYPE_FOLDER.equals(childFile.getMimeType())) {
 				fileMd5(childFile.getId(), fileContext, md5Context);
 				sorting.offer(md5Context.get(childFile.getId())

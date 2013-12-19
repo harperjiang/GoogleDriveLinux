@@ -13,7 +13,9 @@ public class Main {
 		String remoteRoot = Constants.FOLDER_ROOT;
 		File localRoot = new File(Configuration.getLocalRoot());
 		
+		long start = System.currentTimeMillis();
 		service.changes().remoteMd5();
+		System.out.println(System.currentTimeMillis() - start);
 		
 		service.snapshot().make();
 	}
