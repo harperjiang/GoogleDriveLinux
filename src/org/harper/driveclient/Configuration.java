@@ -8,7 +8,7 @@ public class Configuration {
 		return new File(System.getProperty("user.home"), ".google_drive_client");
 	}
 
-	public static String getLocalRoot() {
-		return "./output";
+	public static File getLocalRoot() {
+		return new File("C:\\Users\\Harper\\Google~1");
 	}
 }

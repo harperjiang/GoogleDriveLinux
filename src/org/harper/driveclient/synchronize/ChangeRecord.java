@@ -1,32 +1,29 @@
 package org.harper.driveclient.synchronize;
 
-import java.io.File;
-import java.text.MessageFormat;
-
 public class ChangeRecord {
 
-	public static final String UPLOAD = "upload";
+	public static enum Operation {
+		LOCAL_INSERT, LOCAL_DELETE, LOCAL_CHANGE, LOCAL_RENAME, REMOTE_INSERT, REMOTE_DELETE, REMOTE_CHANGE
+	}
 
-	public static final String DOWNLOAD = "download";
+	private Operation operation;
 
-	private String mode;
+	private String localFile;
 
-	private String remote;
+	private String remoteFileId;
 
-	private File local;
+	private Object[] context;
 
-	public ChangeRecord(String mode, File local, String remote) {
-		this.mode = mode;
-		this.local = local;
-		this.remote = remote;
+	public ChangeRecord(Operation operation, String localPath,
+			String remoteFileId, Object... context) {
+		this.operation = operation;
+		this.localFile = localPath;
+		this.remoteFileId = remoteFileId;
+		this.context = context;
 	}
 
 	public void synchronize() {
-	
+
 	}
 
-	public String toString() {
-		return MessageFormat.format("{0} {1} {2}", mode, local.getName(),
-				remote);
-	}
 }

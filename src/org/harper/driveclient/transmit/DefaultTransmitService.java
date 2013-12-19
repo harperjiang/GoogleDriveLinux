@@ -40,6 +40,7 @@ public class DefaultTransmitService extends DefaultService implements
 		String path = MessageFormat.format("{0}{1}{2}",
 				localFolder.getAbsolutePath(), java.io.File.separator,
 				remoteFile.getTitle());
+		String relativePath = DriveUtils.relativePath(new java.io.File(path));
 		if (DriveUtils.isDirectory(remoteFile)) {
 			// Make local directory and download everything in it
 			java.io.File newFolder = new java.io.File(path);
@@ -63,6 +64,8 @@ public class DefaultTransmitService extends DefaultService implements
 			downloadUrl(downloadUrl, fos);
 			fos.close();
 		}
+		stub.storage().remoteToLocal().put(fileId, relativePath);
+		stub.storage().localToRemote().put(relativePath, fileId);
 	}
 
 	protected void downloadUrl(String url, OutputStream writeTo)
@@ -84,6 +87,7 @@ public class DefaultTransmitService extends DefaultService implements
 	@Override
 	public void upload(String remoteFolder, java.io.File localFile)
 			throws IOException {
+		String remoteFileId = null;
 		if (!localFile.exists()) {
 			throw new IllegalArgumentException("Local file doesn't exist:"
 					+ localFile.getAbsolutePath());
@@ -101,9 +105,7 @@ public class DefaultTransmitService extends DefaultService implements
 			file.setMimeType(Constants.TYPE_FOLDER);
 			// Execute
 			File inserted = drive.files().insert(file).execute();
-			ChildReference child = new ChildReference();
-			child.setId(inserted.getId());
-			drive.children().insert(remoteFolder, child).execute();
+			remoteFileId = inserted.getId();
 			java.io.File[] localChildren = localFile.listFiles();
 			if (localChildren != null) {
 				for (java.io.File localChild : localChildren) {
@@ -111,8 +113,8 @@ public class DefaultTransmitService extends DefaultService implements
 				}
 			}
 		} else {
-			// TODO Here we didn't pay attention to google documents, as it
-			// should not be created locally. Thus all files being uploaded will
+			// TODO Here we didn't pay attention to google documents, as they
+			// should not be created locally. All files being uploaded will
 			// be assumed to be local files.
 
 			// Determine the MIME type
@@ -127,10 +129,16 @@ public class DefaultTransmitService extends DefaultService implements
 					logger.warn("Unrecognized Extension:" + extension);
 				}
 			}
-			drive.files()
+			File remoteFile = drive
+					.files()
 					.insert(file,
 							new FileContent(file.getMimeType(), localFile))
 					.execute();
+			remoteFileId = remoteFile.getId();
 		}
+
+		String relativePath = DriveUtils.relativePath(localFile);
+		stub.storage().remoteToLocal().put(remoteFileId, relativePath);
+		stub.storage().localToRemote().put(relativePath, remoteFileId);
 	}
 }

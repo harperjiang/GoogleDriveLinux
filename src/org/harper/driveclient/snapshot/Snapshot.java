@@ -1,19 +1,35 @@
 package org.harper.driveclient.snapshot;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Snapshot {
+public class Snapshot implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6531606229189120802L;
 
 	private String md5Checksum;
 
 	private String name;
 
+	private boolean file;
+
 	private List<Snapshot> children;
-	
+
 	public Snapshot() {
 		super();
 		children = new ArrayList<Snapshot>();
+	}
+
+	public boolean isFile() {
+		return file;
+	}
+
+	public void setFile(boolean file) {
+		this.file = file;
 	}
 
 	public String getMd5Checksum() {
@@ -34,6 +50,10 @@ public class Snapshot {
 
 	public List<Snapshot> getChildren() {
 		return children;
+	}
+
+	public void addChild(Snapshot child) {
+		this.children.add(child);
 	}
 
 	public void setChildren(List<Snapshot> children) {

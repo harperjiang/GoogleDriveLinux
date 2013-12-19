@@ -1,9 +1,11 @@
 package org.harper.driveclient;
 
-import java.io.File;
+import org.harper.driveclient.common.StringUtils;
 
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.ChildReference;
+import com.google.api.services.drive.Drive.Changes.List;
+import com.google.api.services.drive.model.Change;
+import com.google.api.services.drive.model.ChangeList;
 
 public class Main {
 
@@ -11,12 +13,6 @@ public class Main {
 		Drive drive = DriveClientFactory.createDrive();
 		Services service = new Services(drive);
 
-		String remoteRoot = Constants.FOLDER_ROOT;
-		File localRoot = new File(Configuration.getLocalRoot());
-
-		for (ChildReference childref : drive.children().list(remoteRoot)
-				.execute().getItems()) {
-			service.transmit().download(childref.getId(), localRoot);
-		}
+		System.out.println(service.sync().l)
 	}
 }
