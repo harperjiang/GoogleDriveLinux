@@ -3,6 +3,7 @@ package org.harper.driveclient;
 import java.io.File;
 
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.ChildReference;
 
 public class Main {
 
@@ -12,11 +13,10 @@ public class Main {
 
 		String remoteRoot = Constants.FOLDER_ROOT;
 		File localRoot = new File(Configuration.getLocalRoot());
-		
-		long start = System.currentTimeMillis();
-		service.changes().remoteMd5();
-		System.out.println(System.currentTimeMillis() - start);
-		
-		service.snapshot().make();
+
+		for (ChildReference childref : drive.children().list(remoteRoot)
+				.execute().getItems()) {
+			service.transmit().download(childref.getId(), localRoot);
+		}
 	}
 }

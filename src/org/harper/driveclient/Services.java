@@ -1,9 +1,11 @@
 package org.harper.driveclient;
 
-import org.harper.driveclient.change.ChangeService;
-import org.harper.driveclient.change.DefaultChangeService;
 import org.harper.driveclient.snapshot.DefaultSnapshotService;
 import org.harper.driveclient.snapshot.SnapshotService;
+import org.harper.driveclient.storage.DefaultStorageService;
+import org.harper.driveclient.storage.StorageService;
+import org.harper.driveclient.synchronize.DefaultSynchronizeService;
+import org.harper.driveclient.synchronize.SynchronizeService;
 import org.harper.driveclient.transmit.DefaultTransmitService;
 import org.harper.driveclient.transmit.TransmitService;
 
@@ -17,16 +19,21 @@ public class Services {
 		this.drive = drive;
 	}
 
-	public ChangeService changes() {
-		return new DefaultChangeService(drive);
+	public SynchronizeService sync() {
+		return new DefaultSynchronizeService(drive, this);
 	}
 
 	public SnapshotService snapshot() {
-		return new DefaultSnapshotService(drive);
+		return new DefaultSnapshotService(drive, this);
 	}
 
 	public TransmitService transmit() {
-		return new DefaultTransmitService(drive);
+		return new DefaultTransmitService(drive, this);
 	}
 
+	private StorageService storageService = new DefaultStorageService();
+
+	public StorageService storage() {
+		return storageService;
+	}
 }

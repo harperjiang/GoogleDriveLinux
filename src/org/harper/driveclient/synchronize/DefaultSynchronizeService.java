@@ -1,4 +1,4 @@
-package org.harper.driveclient.change;
+package org.harper.driveclient.synchronize;
 
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -13,19 +13,34 @@ import java.util.Map;
 import java.util.PriorityQueue;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.harper.driveclient.Configuration;
 import org.harper.driveclient.Constants;
+import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
+import org.harper.driveclient.common.StringUtils;
 import org.harper.driveclient.snapshot.Snapshot;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.ChildReference;
 import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
 
-public class DefaultChangeService extends DefaultService implements
-		ChangeService {
+public class DefaultSynchronizeService extends DefaultService implements
+		SynchronizeService {
 
-	public DefaultChangeService(Drive d) {
-		super(d);
+	public DefaultSynchronizeService(Drive d, Services stub) {
+		super(d, stub);
+	}
+
+	@Override
+	public void init() throws IOException {
+		String remoteRoot = Constants.FOLDER_ROOT;
+		java.io.File localRoot = new java.io.File(Configuration.getLocalRoot());
+
+		for (ChildReference childref : drive.children().list(remoteRoot)
+				.execute().getItems()) {
+			stub.transmit().download(childref.getId(), localRoot);
+		}
 	}
 
 	@Override
@@ -134,10 +149,15 @@ public class DefaultChangeService extends DefaultService implements
 		com.google.api.services.drive.Drive.Files.List request = drive.files()
 				.list();
 		request.setQ("trashed = false");
-		
-		request.setPageToken(arg0)
-		for (File file : request.execute().getItems()) {
-			fileContext.put(file.getId(), file);
+		FileList response = null;
+		while (true) {
+			response = request.execute();
+			for (File file : response.getItems()) {
+				fileContext.put(file.getId(), file);
+			}
+			if (StringUtils.isEmpty(response.getNextPageToken()))
+				break;
+			request.setPageToken(response.getNextPageToken());
 		}
 		Map<String, String> result = new HashMap<String, String>();
 		fileMd5(Constants.FOLDER_ROOT, fileContext, result);
@@ -147,17 +167,11 @@ public class DefaultChangeService extends DefaultService implements
 	protected void fileMd5(String current, Map<String, File> fileContext,
 			Map<String, String> md5Context) throws IOException {
 		File currentFile = fileContext.get(current);
-		if (null == currentFile && !Constants.FOLDER_ROOT.equals(current)) {
-			currentFile = drive.files().get(current).execute();
-		}
 		List<ChildReference> children = drive.children().list(current)
 				.execute().getItems();
 		PriorityQueue<String> sorting = new PriorityQueue<String>();
 		for (ChildReference child : children) {
 			File childFile = fileContext.get(child.getId());
-			if (null == childFile) {
-				childFile = drive.files().get(child.getId()).execute();
-			}
 			if (Constants.TYPE_FOLDER.equals(childFile.getMimeType())) {
 				fileMd5(childFile.getId(), fileContext, md5Context);
 				sorting.offer(md5Context.get(childFile.getId())
@@ -210,5 +224,4 @@ public class DefaultChangeService extends DefaultService implements
 			throw new IllegalArgumentException(e);
 		}
 	}
-
 }

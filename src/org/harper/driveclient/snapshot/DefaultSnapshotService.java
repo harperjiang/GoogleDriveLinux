@@ -1,13 +1,15 @@
 package org.harper.driveclient.snapshot;
 
+import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
 
 import com.google.api.services.drive.Drive;
 
-public class DefaultSnapshotService extends DefaultService implements SnapshotService {
+public class DefaultSnapshotService extends DefaultService implements
+		SnapshotService {
 
-	public DefaultSnapshotService(Drive drive) {
-		super(drive);
+	public DefaultSnapshotService(Drive drive, Services stub) {
+		super(drive, stub);
 	}
 
 	@Override
@@ -17,9 +19,7 @@ public class DefaultSnapshotService extends DefaultService implements SnapshotSe
 
 	@Override
 	public Snapshot make() {
-		// Create Snapshot from local directory
-		
-		
+
 		return null;
 	}
 

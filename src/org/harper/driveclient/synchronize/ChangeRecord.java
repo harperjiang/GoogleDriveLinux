@@ -1,4 +1,4 @@
-package org.harper.driveclient.change;
+package org.harper.driveclient.synchronize;
 
 import java.io.File;
 import java.text.MessageFormat;

@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.apache.http.client.ClientProtocolException;
 import org.harper.driveclient.Constants;
+import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
 import org.harper.driveclient.common.DriveUtils;
 import org.harper.driveclient.common.Extension;
@@ -25,8 +26,8 @@ import com.google.api.services.drive.model.ParentReference;
 public class DefaultTransmitService extends DefaultService implements
 		TransmitService {
 
-	public DefaultTransmitService(Drive d) {
-		super(d);
+	public DefaultTransmitService(Drive d, Services stub) {
+		super(d, stub);
 	}
 
 	@Override
