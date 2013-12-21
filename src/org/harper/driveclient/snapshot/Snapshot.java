@@ -2,7 +2,9 @@ package org.harper.driveclient.snapshot;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public class Snapshot implements Serializable {
 
@@ -58,6 +60,19 @@ public class Snapshot implements Serializable {
 
 	public void setChildren(List<Snapshot> children) {
 		this.children = children;
+	}
+
+	public static Snapshot convert(Map<String, Object> content) {
+		Snapshot s = new Snapshot();
+		s.setName((String) content.get("name"));
+		s.setMd5Checksum((String) content.get("md5Checksum"));
+		s.setFile((Boolean) content.get("file"));
+		Collection<Map<String, Object>> children = (Collection<Map<String, Object>>) content
+				.get("children");
+		for (Map<String, Object> child : children) {
+			s.addChild(convert(child));
+		}
+		return s;
 	}
 
 }

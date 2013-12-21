@@ -13,6 +13,7 @@ import org.harper.driveclient.Configuration;
 import org.harper.driveclient.Constants;
 import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
+import org.harper.driveclient.common.DriveUtils;
 import org.harper.driveclient.common.StringUtils;
 import org.harper.driveclient.snapshot.Snapshot;
 import org.harper.driveclient.storage.StorageService;
@@ -34,7 +35,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 	public void init() throws IOException {
 		// Detect and store change number
 		long latestChange = changes(null);
-		stub.storage().put(StorageService.REMOTE_CHANGE, latestChange);
+		if (latestChange != -1)
+			stub.storage().put(StorageService.REMOTE_CHANGE, latestChange);
 
 		// Download files
 		stub.storage().put(StorageService.REMOTE_TO_LOCAL,
@@ -43,6 +45,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 				new HashMap<String, String>());
 		String remoteRoot = Constants.FOLDER_ROOT;
 		java.io.File localRoot = Configuration.getLocalRoot();
+		String localRelative = DriveUtils.relativePath(localRoot);
+		stub.storage().remoteToLocal().put(remoteRoot, localRelative);
+		stub.storage().localToRemote().put(localRelative, remoteRoot);
 
 		for (ChildReference childref : drive.children().list(remoteRoot)
 				.execute().getItems()) {
@@ -70,19 +75,21 @@ public class DefaultSynchronizeService extends DefaultService implements
 
 		Map<String, String> localUploaded = new HashMap<String, String>();
 		for (ChangeRecord localChange : localChanges) {
-			localChange.synchronize(drive);
+			localChange.synchronize(drive, stub);
 			localUploaded.put(localChange.getLocalFile(),
 					localChange.getRemoteFileId());
 		}
 
 		for (ChangeRecord remoteChange : remoteChanges) {
 			if (!localUploaded.containsKey(remoteChange.getLocalFile())) {
-				remoteChange.synchronize(drive);
+				remoteChange.synchronize(drive, stub);
 			}
 		}
 
 		// Save the new snapshot
 		stub.storage().put(StorageService.SNAPSHOT, stub.snapshot().make());
+		// Save the new change id
+		stub.storage().put(StorageService.REMOTE_CHANGE, changes(null));
 	}
 
 	private List<ChangeRecord> remoteChange() throws IOException {
@@ -102,8 +109,27 @@ public class DefaultSynchronizeService extends DefaultService implements
 				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
 						remoteChange.getFileId()));
 			} else {
-				records.add(new ChangeRecord(Operation.REMOTE_CHANGE, local,
-						remoteChange.getFileId()));
+				if (!DriveUtils.isDirectory(remoteChange.getFile())) {
+					String remoteName = remoteChange.getFile().getTitle();
+					String remoteMd5 = remoteChange.getFile().getMd5Checksum();
+					String localMd5 = DriveUtils.md5Checksum(DriveUtils
+							.absolutePath(local));
+					if (localMd5.equals(remoteMd5)) {
+						records.add(new ChangeRecord(Operation.REMOTE_RENAME,
+								local, remoteChange.getFileId(), remoteName));
+					} else {
+						records.add(new ChangeRecord(Operation.REMOTE_CHANGE,
+								local, remoteChange.getFileId()));
+					}
+				} else {
+					// For directory just check the name change
+					String remoteName = remoteChange.getFile().getTitle();
+					String localName = DriveUtils.absolutePath(local).getName();
+					if (!remoteName.equals(localName)) {
+						records.add(new ChangeRecord(Operation.REMOTE_RENAME,
+								local, remoteChange.getFileId(), remoteName));
+					}
+				}
 			}
 		}
 
@@ -175,7 +201,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 					Snapshot oldrec = scMd5Table.get(md5);
 					Snapshot newrec = ccMd5Table.get(md5);
 					changes.add(new ChangeRecord(Operation.LOCAL_RENAME, oldrec
-							.getName(), newrec.getName()));
+							.getName(), stub.storage().localToRemote()
+							.get(oldrec.getName()), newrec.getName()));
+					scNameTable.remove(oldrec.getName());
 					ccNameTable.remove(newName);
 				}
 			}
@@ -196,17 +224,25 @@ public class DefaultSynchronizeService extends DefaultService implements
 	}
 
 	protected long changes(List<Change> changes) throws IOException {
-		long lastChange = 0;
-		try {
-			lastChange = stub.storage().get(StorageService.REMOTE_CHANGE);
-		} catch (Exception e) {
-			// No data stored, default value
-		}
-
 		com.google.api.services.drive.Drive.Changes.List request = drive
 				.changes().list();
 		request.setMaxResults(1000);
-		request.setStartChangeId(lastChange);
+		long lastChange = -1;
+		Object lastChangeData = stub.storage()
+				.get(StorageService.REMOTE_CHANGE);
+		if (lastChangeData != null) {
+			if (lastChangeData instanceof Double) {
+				lastChange = ((Double) lastChangeData).longValue();
+				request.setStartChangeId(lastChange + 1);
+			} else if (lastChangeData instanceof Long) {
+				lastChange = (long) lastChangeData;
+				request.setStartChangeId(lastChange + 1);
+			} else {
+				throw new IllegalArgumentException(lastChangeData.getClass()
+						.getName());
+			}
+		}
+
 		while (true) {
 			ChangeList response = request.execute();
 			if (changes != null) {
@@ -214,7 +250,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 			if (StringUtils.isEmpty(response.getNextPageToken())) {
 				List<Change> items = response.getItems();
-				lastChange = items.get(items.size() - 1).getId();
+				if (!items.isEmpty())
+					lastChange = items.get(items.size() - 1).getId();
 				break;
 			} else {
 				request.setPageToken(response.getNextPageToken());

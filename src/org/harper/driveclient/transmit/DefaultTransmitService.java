@@ -34,7 +34,8 @@ public class DefaultTransmitService extends DefaultService implements
 	public void download(String fileId, java.io.File localFolder)
 			throws IOException {
 		if (!(localFolder.exists() && localFolder.isDirectory())) {
-			throw new IllegalArgumentException("Target is not directory");
+			throw new IllegalArgumentException("Target is not directory:"
+					+ localFolder.getAbsolutePath());
 		}
 		File remoteFile = drive.files().get(fileId).execute();
 		String path = MessageFormat.format("{0}{1}{2}",
@@ -45,7 +46,8 @@ public class DefaultTransmitService extends DefaultService implements
 			// Make local directory and download everything in it
 			java.io.File newFolder = new java.io.File(path);
 			if (!newFolder.mkdir()) {
-				throw new RuntimeException("Cannot make directory");
+				throw new RuntimeException("Cannot make directory:"
+						+ newFolder.getAbsolutePath());
 			}
 			List<ChildReference> children = drive.children().list(fileId)
 					.execute().getItems();
@@ -140,5 +142,35 @@ public class DefaultTransmitService extends DefaultService implements
 		String relativePath = DriveUtils.relativePath(localFile);
 		stub.storage().remoteToLocal().put(remoteFileId, relativePath);
 		stub.storage().localToRemote().put(relativePath, remoteFileId);
+	}
+
+	@Override
+	public void delete(String fileId) throws IOException {
+		drive.files().delete(fileId).execute();
+		String local = stub.storage().remoteToLocal().get(fileId);
+		stub.storage().remoteToLocal().remove(fileId);
+		stub.storage().localToRemote().remove(local);
+	}
+
+	@Override
+	public void rename(String remoteId, String newName) throws IOException {
+		File existing = drive.files().get(remoteId).execute();
+		existing.setTitle(newName);
+		drive.files().update(remoteId, existing).execute();
+		String oldLocal = stub.storage().remoteToLocal().get(remoteId);
+		String newLocal = DriveUtils.absolutePath(oldLocal).getParent()
+				+ java.io.File.separator + newName;
+		stub.storage().remoteToLocal().put(remoteId, newLocal);
+		stub.storage().localToRemote().remove(oldLocal);
+		stub.storage().localToRemote().put(newLocal, remoteId);
+	}
+
+	@Override
+	public void update(String remoteId, java.io.File local) throws IOException {
+		File existing = drive.files().get(remoteId).execute();
+		drive.files()
+				.update(remoteId, existing,
+						new FileContent(existing.getMimeType(), local))
+				.execute();
 	}
 }

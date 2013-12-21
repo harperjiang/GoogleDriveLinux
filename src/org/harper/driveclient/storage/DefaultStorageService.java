@@ -3,14 +3,22 @@ package org.harper.driveclient.storage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.harper.driveclient.Configuration;
+import org.harper.driveclient.snapshot.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 
 public class DefaultStorageService implements StorageService {
 
@@ -19,6 +27,8 @@ public class DefaultStorageService implements StorageService {
 	private ReadWriteLock lock;
 
 	private boolean dirty;
+
+	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	private File persistence = new File(Configuration.getConfigFolder()
 			.getAbsolutePath() + File.separator + "storage");
@@ -53,12 +63,15 @@ public class DefaultStorageService implements StorageService {
 		try {
 			if (!persistence.exists())
 				return;
-			ObjectInputStream ois = new ObjectInputStream(new FileInputStream(
+			Reader jsonReader = new InputStreamReader(new FileInputStream(
 					persistence));
-			storage = (Map<String, Object>) ois.readObject();
-			ois.close();
+			storage = new Gson().fromJson(jsonReader, Map.class);
+			// TODO Is there more elegant way to do this
+			storage.put(SNAPSHOT, Snapshot
+					.convert((Map<String, Object>) storage.get(SNAPSHOT)));
 		} catch (Exception e) {
 			// Eat it
+			logger.warn("Exception when loading storage", e);
 		} finally {
 			lock.writeLock().unlock();
 		}
@@ -69,10 +82,11 @@ public class DefaultStorageService implements StorageService {
 		try {
 			if (!dirty)
 				return;
-			ObjectOutputStream oos = new ObjectOutputStream(
-					new FileOutputStream(persistence));
-			oos.writeObject(storage);
-			oos.close();
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			JsonWriter writer = new JsonWriter(new PrintWriter(
+					new FileOutputStream(persistence)));
+			gson.toJson(storage, Map.class, writer);
+			writer.close();
 			dirty = false;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
