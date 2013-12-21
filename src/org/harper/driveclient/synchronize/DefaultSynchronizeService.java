@@ -311,7 +311,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 				lastChange = ((Double) lastChangeData).longValue();
 				request.setStartChangeId(lastChange + 1);
 			} else if (lastChangeData instanceof Long) {
-				lastChange = (long) lastChangeData;
+				lastChange = (Long) lastChangeData;
 				request.setStartChangeId(lastChange + 1);
 			} else {
 				throw new IllegalArgumentException(lastChangeData.getClass()
