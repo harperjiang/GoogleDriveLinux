@@ -320,7 +320,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 		}
 
 		while (true) {
-			ChangeList response = request.execute();
+			ChangeList response = execute(request);
 			if (changes != null) {
 				changes.addAll(response.getItems());
 			}
