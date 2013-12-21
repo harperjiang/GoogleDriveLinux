@@ -277,7 +277,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 					Snapshot newrec = ccMd5Table.get(md5);
 					changes.add(new ChangeRecord(Operation.LOCAL_RENAME, oldrec
 							.getName(), stub.storage().localToRemote()
-							.get(oldrec.getName()), newrec.getName()));
+							.get(oldrec.getName()), DriveUtils.absolutePath(
+							newrec.getName()).getName()));
 					scNameTable.remove(oldrec.getName());
 					ccNameTable.remove(newName);
 				}
