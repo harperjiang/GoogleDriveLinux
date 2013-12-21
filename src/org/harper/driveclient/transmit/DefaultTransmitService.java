@@ -37,7 +37,7 @@ public class DefaultTransmitService extends DefaultService implements
 			throw new IllegalArgumentException("Target is not directory:"
 					+ localFolder.getAbsolutePath());
 		}
-		File remoteFile = drive.files().get(fileId).execute();
+		File remoteFile = execute(drive.files().get(fileId));
 		String path = MessageFormat.format("{0}{1}{2}",
 				localFolder.getAbsolutePath(), java.io.File.separator,
 				remoteFile.getTitle());
@@ -49,8 +49,8 @@ public class DefaultTransmitService extends DefaultService implements
 				throw new RuntimeException("Cannot make directory:"
 						+ newFolder.getAbsolutePath());
 			}
-			List<ChildReference> children = drive.children().list(fileId)
-					.execute().getItems();
+			List<ChildReference> children = execute(
+					drive.children().list(fileId)).getItems();
 			for (ChildReference child : children) {
 				download(child.getId(), newFolder);
 			}
@@ -106,7 +106,7 @@ public class DefaultTransmitService extends DefaultService implements
 		if (localFile.isDirectory()) {
 			file.setMimeType(Constants.TYPE_FOLDER);
 			// Execute
-			File inserted = drive.files().insert(file).execute();
+			File inserted = execute(drive.files().insert(file));
 			remoteFileId = inserted.getId();
 			java.io.File[] localChildren = localFile.listFiles();
 			if (localChildren != null) {
@@ -131,11 +131,8 @@ public class DefaultTransmitService extends DefaultService implements
 					logger.warn("Unrecognized Extension:" + extension);
 				}
 			}
-			File remoteFile = drive
-					.files()
-					.insert(file,
-							new FileContent(file.getMimeType(), localFile))
-					.execute();
+			File remoteFile = execute(drive.files().insert(file,
+					new FileContent(file.getMimeType(), localFile)));
 			remoteFileId = remoteFile.getId();
 		}
 
@@ -146,7 +143,7 @@ public class DefaultTransmitService extends DefaultService implements
 
 	@Override
 	public void delete(String fileId) throws IOException {
-		drive.files().delete(fileId).execute();
+		execute(drive.files().delete(fileId));
 		String local = stub.storage().remoteToLocal().get(fileId);
 		stub.storage().remoteToLocal().remove(fileId);
 		stub.storage().localToRemote().remove(local);
@@ -154,9 +151,9 @@ public class DefaultTransmitService extends DefaultService implements
 
 	@Override
 	public void rename(String remoteId, String newName) throws IOException {
-		File existing = drive.files().get(remoteId).execute();
+		File existing = execute(drive.files().get(remoteId));
 		existing.setTitle(newName);
-		drive.files().update(remoteId, existing).execute();
+		execute(drive.files().update(remoteId, existing));
 		String oldLocal = stub.storage().remoteToLocal().get(remoteId);
 		String newLocal = DriveUtils.absolutePath(oldLocal).getParent()
 				+ java.io.File.separator + newName;
@@ -167,10 +164,8 @@ public class DefaultTransmitService extends DefaultService implements
 
 	@Override
 	public void update(String remoteId, java.io.File local) throws IOException {
-		File existing = drive.files().get(remoteId).execute();
-		drive.files()
-				.update(remoteId, existing,
-						new FileContent(existing.getMimeType(), local))
-				.execute();
+		File existing = execute(drive.files().get(remoteId));
+		execute(drive.files().update(remoteId, existing,
+				new FileContent(existing.getMimeType(), local)));
 	}
 }

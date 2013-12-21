@@ -54,7 +54,7 @@ public class DriveUtils {
 	protected static String md5String(byte[] input) {
 		StringBuilder sb = new StringBuilder();
 		for (byte i : input) {
-			sb.append(String.format("%x", i));
+			sb.append(String.format("%02x", i));
 		}
 		return sb.toString();
 	}
@@ -65,7 +65,7 @@ public class DriveUtils {
 	}
 
 	public static java.io.File absolutePath(String relativePath) {
-		return new java.io.File(Configuration.getLocalRoot()
+		return new java.io.File(Configuration.getLocalRoot().getAbsolutePath()
 				+ java.io.File.separator + relativePath);
 	}
 }

@@ -1,14 +1,5 @@
 package org.harper.driveclient.synchronize;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-
-import org.harper.driveclient.Services;
-import org.harper.driveclient.common.DriveUtils;
-
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.ParentReference;
 
 public class ChangeRecord {
 
@@ -30,68 +21,6 @@ public class ChangeRecord {
 		this.localFile = localPath;
 		this.remoteFileId = remoteFileId;
 		this.context = context;
-	}
-
-	public void synchronize(Drive drive, Services service) throws IOException {
-		switch (operation) {
-		case LOCAL_INSERT: {
-			// Get remote id for the parent folder
-			File local = DriveUtils.absolutePath(localFile);
-			String remoteParent = service.storage().localToRemote()
-					.get(DriveUtils.relativePath(local.getParentFile()));
-			service.transmit().upload(remoteParent, local);
-			break;
-		}
-		case LOCAL_DELETE: {
-			service.transmit().delete(remoteFileId);
-			break;
-		}
-		case LOCAL_CHANGE: {
-			File local = DriveUtils.absolutePath(localFile);
-			service.transmit().update(remoteFileId, local);
-			break;
-		}
-		case LOCAL_RENAME: {
-			service.transmit().rename(remoteFileId, (String) context[0]);
-			break;
-		}
-		case REMOTE_INSERT: {
-			// Query Remote parent
-			List<ParentReference> parents = drive.parents().list(remoteFileId)
-					.execute().getItems();
-			String parentId = parents.get(0).getId();
-			File localParent = DriveUtils.absolutePath(service.storage()
-					.remoteToLocal().get(parentId));
-			service.transmit().download(remoteFileId, localParent);
-			break;
-		}
-		case REMOTE_DELETE: {
-			DriveUtils.absolutePath(localFile).delete();
-			service.storage().localToRemote().remove(localFile);
-			service.storage().remoteToLocal().remove(remoteFileId);
-			break;
-		}
-		case REMOTE_CHANGE: {
-			File localParent = DriveUtils.absolutePath(localFile)
-					.getParentFile();
-			service.transmit().download(remoteFileId, localParent);
-			break;
-		}
-		case REMOTE_RENAME: {
-			File local = DriveUtils.absolutePath(localFile);
-			File newName = new File(local.getParentFile().getAbsolutePath()
-					+ File.separator + (String) context[0]);
-			local.renameTo(newName);
-			service.storage().remoteToLocal()
-					.put(remoteFileId, DriveUtils.relativePath(newName));
-			service.storage().localToRemote()
-					.remove(DriveUtils.relativePath(local));
-			service.storage().localToRemote()
-					.put(DriveUtils.relativePath(newName), remoteFileId);
-			break;
-		}
-		}
-
 	}
 
 	public Operation getOperation() {
