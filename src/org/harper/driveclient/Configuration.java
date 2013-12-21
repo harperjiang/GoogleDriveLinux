@@ -9,6 +9,6 @@ public class Configuration {
 	}
 
 	public static File getLocalRoot() {
-		return new File("C:\\Users\\Harper\\Google~1");
+		return new File("./output");
 	}
 }

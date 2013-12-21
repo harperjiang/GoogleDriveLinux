@@ -56,19 +56,30 @@ public class DefaultSynchronizeService extends DefaultService implements
 	@Override
 	public void synchronize() throws IOException {
 		// Detect remote change
-		List<ChangeRecord> remoteChange = remoteChange();
+		List<ChangeRecord> remoteChanges = remoteChange();
 		// Detect local change
 		Snapshot standard = stub.storage().get(StorageService.SNAPSHOT);
 		Snapshot current = stub.snapshot().make();
-		List<ChangeRecord> localChange = compare(standard, current);
+		List<ChangeRecord> localChanges = compare(standard, current);
 
-		// First upload then download
-		
-		// Recorded uploaded file so later no need to download
+		/*
+		 * First upload then download. Local change has higher priority than
+		 * remote because remote change can be restored while local cannot.
+		 * Recorded uploaded file so later no need to download
+		 */
+
 		Map<String, String> localUploaded = new HashMap<String, String>();
+		for (ChangeRecord localChange : localChanges) {
+			localChange.synchronize(drive);
+			localUploaded.put(localChange.getLocalFile(),
+					localChange.getRemoteFileId());
+		}
 
-		// Merge the change, local change has higher priority than remote
-		// Remote change can be restored while local cannot
+		for (ChangeRecord remoteChange : remoteChanges) {
+			if (!localUploaded.containsKey(remoteChange.getLocalFile())) {
+				remoteChange.synchronize(drive);
+			}
+		}
 
 		// Save the new snapshot
 		stub.storage().put(StorageService.SNAPSHOT, stub.snapshot().make());
