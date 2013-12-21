@@ -159,8 +159,10 @@ public class DefaultTransmitService extends DefaultService implements
 		existing.setTitle(newName);
 		execute(drive.files().update(remoteId, existing));
 		String oldLocal = stub.storage().remoteToLocal().get(remoteId);
-		String newLocal = DriveUtils.absolutePath(oldLocal).getParent()
-				+ java.io.File.separator + newName;
+		String newLocal = DriveUtils.relativePath(new java.io.File(DriveUtils
+				.absolutePath(oldLocal).getParent()
+				+ java.io.File.separator
+				+ newName));
 		stub.storage().remoteToLocal().put(remoteId, newLocal);
 		stub.storage().localToRemote().remove(oldLocal);
 		stub.storage().localToRemote().put(newLocal, remoteId);
