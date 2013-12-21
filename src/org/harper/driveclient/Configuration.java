@@ -17,4 +17,8 @@ public class Configuration {
 	public static void setLocalRoot(File root) {
 		localRoot = root;
 	}
+
+	public static long getCheckInterval() {
+		return 60000;
+	}
 }
