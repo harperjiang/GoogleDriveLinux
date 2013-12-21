@@ -30,6 +30,10 @@ public class DefaultTransmitService extends DefaultService implements
 		super(d, stub);
 	}
 
+	protected static final String escape(String input) {
+		return input;
+	}
+
 	@Override
 	public void download(String fileId, java.io.File localFolder)
 			throws IOException {
@@ -40,7 +44,7 @@ public class DefaultTransmitService extends DefaultService implements
 		File remoteFile = execute(drive.files().get(fileId));
 		String path = MessageFormat.format("{0}{1}{2}",
 				localFolder.getAbsolutePath(), java.io.File.separator,
-				remoteFile.getTitle());
+				escape(remoteFile.getTitle()));
 		String relativePath = DriveUtils.relativePath(new java.io.File(path));
 		if (DriveUtils.isDirectory(remoteFile)) {
 			// Make local directory and download everything in it
