@@ -1,6 +1,7 @@
 package org.harper.driveclient.snapshot;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -52,7 +53,8 @@ public class DefaultSnapshotService extends DefaultService implements
 			}
 			StringBuilder sb = new StringBuilder();
 			while (!sort.isEmpty()) {
-				sb.append(md5s.get(sort.poll()));
+				String name = sort.poll();
+				sb.append(MessageFormat.format("{0}:{1};", name, md5s.get(name)));
 			}
 			current.setMd5Checksum(DriveUtils.md5Checksum(sb.toString()));
 		} else {
