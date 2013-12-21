@@ -18,4 +18,9 @@ public class DefaultService {
 		this.drive = d;
 		this.stub = stub;
 	}
+
+	public Services getStub() {
+		return stub;
+	}
+
 }
