@@ -42,6 +42,10 @@ public class DefaultTransmitService extends DefaultService implements
 					+ localFolder.getAbsolutePath());
 		}
 		File remoteFile = execute(drive.files().get(fileId));
+		if (remoteFile.getLabels().getTrashed()) {
+			logger.info("File is trashed", remoteFile.getTitle());
+			return;
+		}
 		String path = MessageFormat.format("{0}{1}{2}",
 				localFolder.getAbsolutePath(), java.io.File.separator,
 				escape(remoteFile.getTitle()));
