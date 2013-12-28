@@ -302,7 +302,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 	protected long changes(List<Change> changes) throws IOException {
 		com.google.api.services.drive.Drive.Changes.List request = drive
 				.changes().list();
-		request.setMaxResults(1000);
+		request.setMaxResults(100);
 		long lastChange = -1;
 		Object lastChangeData = stub.storage()
 				.get(StorageService.REMOTE_CHANGE);

@@ -60,7 +60,12 @@ public class DefaultTransmitService extends DefaultService implements
 			List<ChildReference> children = execute(
 					drive.children().list(fileId)).getItems();
 			for (ChildReference child : children) {
-				download(child.getId(), newFolder);
+				try {
+					download(child.getId(), newFolder);
+				} catch (Exception e) {
+					// TODO Log the error, waiting for next synchronization
+					logger.debug("Error occurred when downloading file", e);
+				}
 			}
 		} else if (DriveUtils.isGoogleDoc(remoteFile)) {
 			FileOutputStream fos = new FileOutputStream(path

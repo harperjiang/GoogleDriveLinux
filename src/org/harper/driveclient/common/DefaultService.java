@@ -1,6 +1,7 @@
 package org.harper.driveclient.common;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 import org.harper.driveclient.Services;
 import org.slf4j.Logger;
@@ -38,10 +39,16 @@ public class DefaultService {
 						"Exception while executing drive task, waiting to retry",
 						e);
 				interval++;
+			} catch (SocketTimeoutException e) {
+				logger.warn(
+						"Exception while executing drive task, waiting to retry",
+						e);
+				interval++;
 			} catch (IOException e) {
+				logger.error("Exception while executing drive task", e);
 				throw new RuntimeException(e);
 			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
+				logger.error("Exception while executing drive task", e);
 			}
 		}
 	}
