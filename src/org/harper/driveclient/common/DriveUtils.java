@@ -24,7 +24,7 @@ public class DriveUtils {
 	public static String md5Checksum(java.io.File localFile) {
 		try {
 			if (!localFile.isFile())
-				throw new IllegalArgumentException("Not a file");
+				throw new IllegalArgumentException("Not a file:"+localFile.getAbsolutePath());
 			MessageDigest md5 = MessageDigest.getInstance("md5");
 			byte[] buffer = new byte[10000];
 			FileInputStream fis = new FileInputStream(localFile);

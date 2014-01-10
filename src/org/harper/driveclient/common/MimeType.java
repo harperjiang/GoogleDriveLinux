@@ -114,6 +114,7 @@ public enum MimeType {
         application_wordperfect6_1("application/wordperfect6.1"),
         application_xml("application/xml"),
         application_x_123("application/x-123"),
+        application_x_7z_compressed("application/x-7z-compressed"),
         application_x_aim("application/x-aim"),
         application_x_authorware_bin("application/x-authorware-bin"),
         application_x_authorware_map("application/x-authorware-map"),

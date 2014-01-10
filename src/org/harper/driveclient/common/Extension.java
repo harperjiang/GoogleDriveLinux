@@ -1,7 +1,7 @@
 package org.harper.driveclient.common;
 
 public enum Extension {
-
+	
     a       ("a",   	MimeType.application_octet_stream),
     aab     ("aab", 	MimeType.application_x_authorware_bin),
     aam     ("aam", 	MimeType.application_x_authorware_map),
@@ -318,6 +318,7 @@ public enum Extension {
     sdr     ("sdr", MimeType.application_sounder),
     sea     ("sea", MimeType.application_sea),
     set     ("set", MimeType.application_set),
+    sevenz	("7z", MimeType.application_x_7z_compressed),
     sgm     ("sgm", MimeType.text_sgml),
     sgml    ("sgml",        MimeType.text_sgml),
     sh      ("sh",  MimeType.application_x_bsh),
@@ -479,20 +480,21 @@ public enum Extension {
     }
     
     public static Extension match(String match) {
-            try {
-                    match = match.replace('-', '_');
-                    return Extension.valueOf(match);
-            } catch (Exception e) {
-                    if ("for".equals(match))
-                            return forfile;
-                    if ("class".equals(match))
-                            return clazz;
-                    if("3dm".equals(match))
-                            return threedm;
-                    if("3dmf".equals(match))
-                            return threedmf;
-                    return null;
-            }
+        try {
+            match = match.replace('-', '_');
+            return Extension.valueOf(match);
+        } catch (Exception e) {
+            if ("for".equals(match))
+                    return forfile;
+            if ("class".equals(match))
+                    return clazz;
+            if("3dm".equals(match))
+                    return threedm;
+            if("3dmf".equals(match))
+                    return threedmf;
+            if("7z".equals(match))
+            	return sevenz;
+            return null;
+        }
     }
-
 }

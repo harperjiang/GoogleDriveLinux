@@ -90,8 +90,6 @@ public class DefaultSynchronizeService extends DefaultService implements
 
 		// Save the new snapshot
 		stub.storage().put(StorageService.SNAPSHOT, stub.snapshot().make());
-		// Save the new change id
-		stub.storage().put(StorageService.REMOTE_CHANGE, changes(null));
 	}
 
 	private void synchronize(ChangeRecord record) throws IOException {
@@ -122,10 +120,18 @@ public class DefaultSynchronizeService extends DefaultService implements
 			// Query Remote parent
 			List<ParentReference> parents = drive.parents()
 					.list(record.getRemoteFileId()).execute().getItems();
-			String parentId = parents.get(0).getId();
-			File localParent = DriveUtils.absolutePath(stub.storage()
-					.remoteToLocal().get(parentId));
-			stub.transmit().download(record.getRemoteFileId(), localParent);
+			if (!parents.isEmpty()) {
+				for (ParentReference parref : parents) {
+					String parentId = parref.getId();
+					if (stub.storage().remoteToLocal().containsKey(parentId)) {
+						File localParent = DriveUtils.absolutePath(stub
+								.storage().remoteToLocal().get(parentId));
+						stub.transmit().download(record.getRemoteFileId(),
+								localParent);
+						break;
+					}
+				}
+			}
 			break;
 		}
 		case REMOTE_DELETE: {
@@ -169,8 +175,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 
 	private List<ChangeRecord> remoteChange() throws IOException {
 		List<Change> changes = new ArrayList<Change>();
-		changes(changes);
-
+		long lastChange = changes(changes);
+		stub.storage().put(StorageService.REMOTE_CHANGE, lastChange);
 		List<ChangeRecord> records = new ArrayList<ChangeRecord>();
 
 		for (Change remoteChange : changes) {

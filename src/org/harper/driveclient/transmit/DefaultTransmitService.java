@@ -43,19 +43,30 @@ public class DefaultTransmitService extends DefaultService implements
 		}
 		File remoteFile = execute(drive.files().get(fileId));
 		if (remoteFile.getLabels().getTrashed()) {
-			logger.info("File is trashed", remoteFile.getTitle());
+			logger.info("File is trashed:"+ remoteFile.getTitle());
 			return;
 		}
 		String path = MessageFormat.format("{0}{1}{2}",
 				localFolder.getAbsolutePath(), java.io.File.separator,
 				escape(remoteFile.getTitle()));
-		String relativePath = DriveUtils.relativePath(new java.io.File(path));
 		if (DriveUtils.isDirectory(remoteFile)) {
 			// Make local directory and download everything in it
 			java.io.File newFolder = new java.io.File(path);
 			if (!newFolder.mkdir()) {
-				throw new RuntimeException("Cannot make directory:"
-						+ newFolder.getAbsolutePath());
+				if (newFolder.isDirectory()) {
+					if (logger.isDebugEnabled()) {
+						logger.debug("Directory already exists:"
+								+ newFolder.getAbsolutePath());
+					}
+				} else {
+					throw new RuntimeException("Cannot make directory:"
+							+ newFolder.getAbsolutePath());
+				}
+			} else {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Creating directory:"
+							+ newFolder.getAbsolutePath());
+				}
 			}
 			List<ChildReference> children = execute(
 					drive.children().list(fileId)).getItems();
@@ -68,8 +79,8 @@ public class DefaultTransmitService extends DefaultService implements
 				}
 			}
 		} else if (DriveUtils.isGoogleDoc(remoteFile)) {
-			FileOutputStream fos = new FileOutputStream(path
-					+ Constants.EXTENSION_GDOCS);
+			path = path + Constants.EXTENSION_GDOCS;
+			FileOutputStream fos = new FileOutputStream(path);
 			fos.write(remoteFile.getDefaultOpenWithLink().getBytes());
 			fos.close();
 		} else {
@@ -79,6 +90,7 @@ public class DefaultTransmitService extends DefaultService implements
 			downloadUrl(downloadUrl, fos);
 			fos.close();
 		}
+		String relativePath = DriveUtils.relativePath(new java.io.File(path));
 		stub.storage().remoteToLocal().put(fileId, relativePath);
 		stub.storage().localToRemote().put(relativePath, fileId);
 	}
