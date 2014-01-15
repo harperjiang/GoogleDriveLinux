@@ -2,6 +2,7 @@ package org.harper.driveclient.synchronize;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -93,84 +94,96 @@ public class DefaultSynchronizeService extends DefaultService implements
 	}
 
 	private void synchronize(ChangeRecord record) throws IOException {
-		switch (record.getOperation()) {
-		case LOCAL_INSERT: {
-			// Get remote id for the parent folder
-			File local = DriveUtils.absolutePath(record.getLocalFile());
-			String remoteParent = stub.storage().localToRemote()
-					.get(DriveUtils.relativePath(local.getParentFile()));
-			stub.transmit().upload(remoteParent, local);
-			break;
-		}
-		case LOCAL_DELETE: {
-			stub.transmit().delete(record.getRemoteFileId());
-			break;
-		}
-		case LOCAL_CHANGE: {
-			File local = DriveUtils.absolutePath(record.getLocalFile());
-			stub.transmit().update(record.getRemoteFileId(), local);
-			break;
-		}
-		case LOCAL_RENAME: {
-			stub.transmit().rename(record.getRemoteFileId(),
-					(String) record.getContext()[0]);
-			break;
-		}
-		case REMOTE_INSERT: {
-			com.google.api.services.drive.model.File remoteFile = drive.files()
-					.get(record.getRemoteFileId()).execute();
-			if (stub.storage().remoteToLocal()
-					.containsKey(record.getRemoteFileId())) {
-				// This file/folder already had been created
+		try {
+			switch (record.getOperation()) {
+			case LOCAL_INSERT: {
+				// Get remote id for the parent folder
+				File local = DriveUtils.absolutePath(record.getLocalFile());
+				String remoteParent = stub.storage().localToRemote()
+						.get(DriveUtils.relativePath(local.getParentFile()));
+				stub.transmit().upload(remoteParent, local);
 				break;
 			}
-			// Depth search of parent that has a local root
-			List<ParentReference> path = new ArrayList<ParentReference>();
-			File local = pathToLocal(record.getRemoteFileId(), path);
-			File parent = local;
-			for (ParentReference node : path) {
-				stub.transmit().download(node.getId(), parent);
-				parent = DriveUtils.absolutePath(stub.storage().remoteToLocal()
-						.get(node.getId()));
+			case LOCAL_DELETE: {
+				stub.transmit().delete(record.getRemoteFileId());
+				break;
 			}
-			stub.transmit().download(record.getRemoteFileId(), parent);
-			break;
-		}
-		case REMOTE_DELETE: {
-			DriveUtils.absolutePath(record.getLocalFile()).delete();
-			stub.storage().localToRemote().remove(record.getLocalFile());
-			stub.storage().remoteToLocal().remove(record.getRemoteFileId());
-			break;
-		}
-		case REMOTE_CHANGE: {
-			File local = DriveUtils.absolutePath(record.getLocalFile());
-			File localParent = local.getParentFile();
-			if (!execute(drive.files().get(record.getRemoteFileId()))
-					.getTitle().equals(local.getName())) {
-				local.delete();
+			case LOCAL_CHANGE: {
+				File local = DriveUtils.absolutePath(record.getLocalFile());
+				stub.transmit().update(record.getRemoteFileId(), local);
+				break;
+			}
+			case LOCAL_RENAME: {
+				stub.transmit().rename(record.getRemoteFileId(),
+						(String) record.getContext()[0]);
+				break;
+			}
+			case REMOTE_INSERT: {
+				if (stub.storage().remoteToLocal()
+						.containsKey(record.getRemoteFileId())) {
+					// This file/folder already had been created
+					break;
+				}
+				// Depth search of parent that has a local root
+				List<ParentReference> path = new ArrayList<ParentReference>();
+				File local = pathToLocal(record.getRemoteFileId(), path);
+				File parent = local;
+				for (ParentReference node : path) {
+					stub.transmit().download(node.getId(), parent);
+					parent = DriveUtils.absolutePath(stub.storage()
+							.remoteToLocal().get(node.getId()));
+				}
+				stub.transmit().download(record.getRemoteFileId(), parent);
+				break;
+			}
+			case REMOTE_DELETE: {
+				if (!DriveUtils.absolutePath(record.getLocalFile()).delete()) {
+					if (logger.isDebugEnabled()) {
+						logger.debug(MessageFormat
+								.format("Failed to delete file {0}. File may have been deleted.",
+										record.getLocalFile()));
+					}
+				}
 				stub.storage().localToRemote().remove(record.getLocalFile());
 				stub.storage().remoteToLocal().remove(record.getRemoteFileId());
+				break;
 			}
-			stub.transmit().download(record.getRemoteFileId(), localParent);
-			break;
-		}
-		case REMOTE_RENAME: {
-			File local = DriveUtils.absolutePath(record.getLocalFile());
-			File newName = new File(local.getParentFile().getAbsolutePath()
-					+ File.separator + (String) record.getContext()[0]);
-			local.renameTo(newName);
-			stub.storage()
-					.remoteToLocal()
-					.put(record.getRemoteFileId(),
-							DriveUtils.relativePath(newName));
-			stub.storage().localToRemote()
-					.remove(DriveUtils.relativePath(local));
-			stub.storage()
-					.localToRemote()
-					.put(DriveUtils.relativePath(newName),
-							record.getRemoteFileId());
-			break;
-		}
+			case REMOTE_CHANGE: {
+				File local = DriveUtils.absolutePath(record.getLocalFile());
+				File localParent = local.getParentFile();
+				if (!execute(drive.files().get(record.getRemoteFileId()))
+						.getTitle().equals(local.getName())) {
+					local.delete();
+					stub.storage().localToRemote()
+							.remove(record.getLocalFile());
+					stub.storage().remoteToLocal()
+							.remove(record.getRemoteFileId());
+				}
+				stub.transmit().download(record.getRemoteFileId(), localParent);
+				break;
+			}
+			case REMOTE_RENAME: {
+				File local = DriveUtils.absolutePath(record.getLocalFile());
+				File newName = new File(local.getParentFile().getAbsolutePath()
+						+ File.separator + (String) record.getContext()[0]);
+				local.renameTo(newName);
+				stub.storage()
+						.remoteToLocal()
+						.put(record.getRemoteFileId(),
+								DriveUtils.relativePath(newName));
+				stub.storage().localToRemote()
+						.remove(DriveUtils.relativePath(local));
+				stub.storage()
+						.localToRemote()
+						.put(DriveUtils.relativePath(newName),
+								record.getRemoteFileId());
+				break;
+			}
+			}
+		} catch (Exception e) {
+			logger.warn(MessageFormat.format(
+					"Exception on Change {0}. Retry later", record), e);
+			stub.storage().failedLog().add(record);
 		}
 	}
 
