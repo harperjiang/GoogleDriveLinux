@@ -117,21 +117,23 @@ public class DefaultSynchronizeService extends DefaultService implements
 			break;
 		}
 		case REMOTE_INSERT: {
-			// Query Remote parent
-			List<ParentReference> parents = drive.parents()
-					.list(record.getRemoteFileId()).execute().getItems();
-			if (!parents.isEmpty()) {
-				for (ParentReference parref : parents) {
-					String parentId = parref.getId();
-					if (stub.storage().remoteToLocal().containsKey(parentId)) {
-						File localParent = DriveUtils.absolutePath(stub
-								.storage().remoteToLocal().get(parentId));
-						stub.transmit().download(record.getRemoteFileId(),
-								localParent);
-						break;
-					}
-				}
+			com.google.api.services.drive.model.File remoteFile = drive.files()
+					.get(record.getRemoteFileId()).execute();
+			if (stub.storage().remoteToLocal()
+					.containsKey(record.getRemoteFileId())) {
+				// This file/folder already had been created
+				break;
 			}
+			// Depth search of parent that has a local root
+			List<ParentReference> path = new ArrayList<ParentReference>();
+			File local = pathToLocal(record.getRemoteFileId(), path);
+			File parent = local;
+			for (ParentReference node : path) {
+				stub.transmit().download(node.getId(), parent);
+				parent = DriveUtils.absolutePath(stub.storage().remoteToLocal()
+						.get(node.getId()));
+			}
+			stub.transmit().download(record.getRemoteFileId(), parent);
 			break;
 		}
 		case REMOTE_DELETE: {
@@ -170,7 +172,6 @@ public class DefaultSynchronizeService extends DefaultService implements
 			break;
 		}
 		}
-
 	}
 
 	private List<ChangeRecord> remoteChange() throws IOException {
@@ -182,12 +183,12 @@ public class DefaultSynchronizeService extends DefaultService implements
 		for (Change remoteChange : changes) {
 			String local = stub.storage().remoteToLocal()
 					.get(remoteChange.getFileId());
-			if (StringUtils.isEmpty(local)) {
+			if (remoteChange.getDeleted()) {
+				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
+						remoteChange.getFileId()));
+			} else if (StringUtils.isEmpty(local)) {
 				// Cannot find this file, should be new
 				records.add(new ChangeRecord(Operation.REMOTE_INSERT, null,
-						remoteChange.getFileId()));
-			} else if (remoteChange.getDeleted()) {
-				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
 						remoteChange.getFileId()));
 			} else {
 				if (!DriveUtils.isDirectory(remoteChange.getFile())) {
@@ -340,5 +341,29 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 		return lastChange;
+	}
+
+	private File pathToLocal(String remoteFileId, List<ParentReference> path)
+			throws IOException {
+		List<ParentReference> pRefs = drive.parents().list(remoteFileId)
+				.execute().getItems();
+		for (ParentReference pRef : pRefs) {
+			if (pRef.getIsRoot()) {
+				return Configuration.getLocalRoot();
+			}
+			if (stub.storage().remoteToLocal().containsKey(pRef.getId())) {
+				return DriveUtils.absolutePath(stub.storage().remoteToLocal()
+						.get(pRef.getId()));
+			} else {
+				path.add(pRef);
+				File lookInside = pathToLocal(pRef.getId(), path);
+				if (null != lookInside) {
+					return lookInside;
+				} else {
+					path.remove(pRef);
+				}
+			}
+		}
+		return null;
 	}
 }
