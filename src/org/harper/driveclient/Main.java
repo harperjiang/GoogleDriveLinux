@@ -11,12 +11,12 @@ public class Main {
 		Services service = new Services(drive);
 
 		while (true) {
-			Thread.sleep(Configuration.getCheckInterval());
 			if (null == service.storage().get(StorageService.REMOTE_CHANGE)) {
 				service.sync().init();
 			} else {
 				service.sync().synchronize();
 			}
+			Thread.sleep(Configuration.getCheckInterval());
 		}
 	}
 }

@@ -279,7 +279,7 @@ public enum Extension {
     pvu     ("pvu", MimeType.paleovu_x_pv),
     pwz     ("pwz", MimeType.application_vnd_ms_powerpoint),
     py      ("py",  MimeType.text_x_script_phyton),
-    pyc     ("pyc", MimeType.applicaiton_x_bytecode_python),
+    pyc     ("pyc", MimeType.application_x_bytecode_python),
     qcp     ("qcp", MimeType.audio_vnd_qcelp),
     qd3     ("qd3", MimeType.x_world_x_3dmf),
     qd3d    ("qd3d",        MimeType.x_world_x_3dmf),

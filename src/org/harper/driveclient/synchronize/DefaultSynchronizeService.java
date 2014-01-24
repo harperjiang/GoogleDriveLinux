@@ -101,7 +101,15 @@ public class DefaultSynchronizeService extends DefaultService implements
 				File local = DriveUtils.absolutePath(record.getLocalFile());
 				String remoteParent = stub.storage().localToRemote()
 						.get(DriveUtils.relativePath(local.getParentFile()));
-				stub.transmit().upload(remoteParent, local);
+				if (!StringUtils.isEmpty(remoteParent)
+						&& !stub.storage().localToRemote()
+								.containsKey(record.getLocalFile())) {
+					// Ignore insert request that doesn't have a parent or
+					// already have a mapping.
+					// The insert operation will be accomplished by the topmost
+					// folder
+					stub.transmit().upload(remoteParent, local);
+				}
 				break;
 			}
 			case LOCAL_DELETE: {

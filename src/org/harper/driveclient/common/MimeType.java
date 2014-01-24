@@ -10,7 +10,7 @@ package org.harper.driveclient.common;
  */
 public enum MimeType {
 
-        applicaiton_x_bytecode_python("applicaiton/x-bytecode.python"),
+        application_x_bytecode_python("applicaiton/x-bytecode.python"),
         application_acad("application/acad"),
         application_arj("application/arj"),
         application_base64("application/base64"),

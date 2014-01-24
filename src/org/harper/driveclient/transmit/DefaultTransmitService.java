@@ -12,6 +12,7 @@ import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
 import org.harper.driveclient.common.DriveUtils;
 import org.harper.driveclient.common.Extension;
+import org.harper.driveclient.common.MimeType;
 import org.harper.driveclient.common.StringUtils;
 
 import com.google.api.client.http.FileContent;
@@ -137,7 +138,7 @@ public class DefaultTransmitService extends DefaultService implements
 					+ localFile.getAbsolutePath());
 		}
 		if (StringUtils.isEmpty(remoteFolder)) {
-			throw new IllegalArgumentException("Remove folder is invalid");
+			throw new IllegalArgumentException("Remote folder doesn't exist");
 		}
 		File file = new File();
 		file.setTitle(localFile.getName());
@@ -172,7 +173,11 @@ public class DefaultTransmitService extends DefaultService implements
 				if (ext != null)
 					file.setMimeType(ext.getType().fullName());
 				else {
-					logger.warn("Unrecognized Extension:" + extension);
+					logger.warn(MessageFormat.format(
+							"Unrecognized Extension:{0},use default mimetype",
+							extension));
+					file.setMimeType(MimeType.application_octet_stream
+							.fullName());
 				}
 			}
 			File remoteFile = execute(drive.files().insert(file,
