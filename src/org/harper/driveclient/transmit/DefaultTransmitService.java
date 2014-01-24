@@ -7,15 +7,16 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.http.client.ClientProtocolException;
 import org.harper.driveclient.Constants;
 import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DefaultService;
 import org.harper.driveclient.common.DriveUtils;
 import org.harper.driveclient.common.Extension;
+import org.harper.driveclient.common.StringUtils;
 
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.util.IOUtils;
 import com.google.api.services.drive.Drive;
@@ -43,7 +44,7 @@ public class DefaultTransmitService extends DefaultService implements
 		}
 		File remoteFile = execute(drive.files().get(fileId));
 		if (remoteFile.getLabels().getTrashed()) {
-			logger.info("File is trashed:"+ remoteFile.getTitle());
+			logger.info("File is trashed:" + remoteFile.getTitle());
 			return;
 		}
 		String path = MessageFormat.format("{0}{1}{2}",
@@ -75,7 +76,8 @@ public class DefaultTransmitService extends DefaultService implements
 					download(child.getId(), newFolder);
 				} catch (Exception e) {
 					// TODO Log the error, waiting for next synchronization
-					logger.debug("Error occurred when downloading file", e);
+					logger.debug("Error occurred when downloading file:"
+							+ child.getId(), e);
 				}
 			}
 		} else if (DriveUtils.isGoogleDoc(remoteFile)) {
@@ -87,7 +89,7 @@ public class DefaultTransmitService extends DefaultService implements
 			// Normal file
 			String downloadUrl = remoteFile.getDownloadUrl();
 			FileOutputStream fos = new FileOutputStream(path);
-			downloadUrl(downloadUrl, fos);
+			downloadUrl(downloadUrl, fos, 0);
 			fos.close();
 		}
 		String relativePath = DriveUtils.relativePath(new java.io.File(path));
@@ -95,19 +97,34 @@ public class DefaultTransmitService extends DefaultService implements
 		stub.storage().localToRemote().put(relativePath, fileId);
 	}
 
-	protected void downloadUrl(String url, OutputStream writeTo)
+	protected void downloadUrl(String url, OutputStream writeTo, long startPos)
 			throws IOException {
-		try {
-			HttpResponse response = drive.getRequestFactory()
-					.buildGetRequest(new GenericUrl(url)).execute();
+		HttpRequest request = drive.getRequestFactory().buildGetRequest(
+				new GenericUrl(url));
+		if (startPos > 0) {
+			// TODO Resumable download
+		}
+		long retryTime = 0;
+		long counter = 1;
+		while (true) {
+			try {
+				Thread.sleep(retryTime);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			HttpResponse response = request.execute();
 			if (response.getStatusCode() == 200) {
 				IOUtils.copy(response.getContent(), writeTo);
+				break;
 			} else {
-				throw new RuntimeException("Server return "
-						+ response.getStatusCode());
+				retryTime = (long) Math.pow(2, counter++) * 1000;
+				if (logger.isDebugEnabled()) {
+					logger.debug(MessageFormat.format(
+							"Download file {0} return {1},"
+									+ " waiting to retry after {2}", url,
+							response.getStatusCode(), retryTime));
+				}
 			}
-		} catch (ClientProtocolException e) {
-			throw new RuntimeException(e);
 		}
 	}
 
@@ -119,7 +136,9 @@ public class DefaultTransmitService extends DefaultService implements
 			throw new IllegalArgumentException("Local file doesn't exist:"
 					+ localFile.getAbsolutePath());
 		}
-
+		if (StringUtils.isEmpty(remoteFolder)) {
+			throw new IllegalArgumentException("Remove folder is invalid");
+		}
 		File file = new File();
 		file.setTitle(localFile.getName());
 		// Set Parent

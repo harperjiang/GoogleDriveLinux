@@ -137,6 +137,13 @@ public class DefaultSynchronizeService extends DefaultService implements
 				break;
 			}
 			case REMOTE_DELETE: {
+				if (StringUtils.isEmpty(record.getLocalFile())) {
+					// No local file, remote file should be a trashed one.
+					if (logger.isDebugEnabled()) {
+						logger.debug("No corresponding local file for deletion. Remote file may be trashed");
+					}
+					break;
+				}
 				if (!DriveUtils.absolutePath(record.getLocalFile()).delete()) {
 					if (logger.isDebugEnabled()) {
 						logger.debug(MessageFormat
@@ -197,6 +204,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 			String local = stub.storage().remoteToLocal()
 					.get(remoteChange.getFileId());
 			if (remoteChange.getDeleted()) {
+				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
+						remoteChange.getFileId()));
+			} else if (remoteChange.getFile().getLabels().getTrashed()) {
 				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
 						remoteChange.getFileId()));
 			} else if (StringUtils.isEmpty(local)) {

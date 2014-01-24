@@ -19,6 +19,6 @@ public class Configuration {
 	}
 
 	public static long getCheckInterval() {
-		return 6000;
+		return 60000;
 	}
 }

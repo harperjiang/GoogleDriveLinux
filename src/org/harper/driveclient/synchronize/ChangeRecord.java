@@ -1,5 +1,6 @@
 package org.harper.driveclient.synchronize;
 
+import java.text.MessageFormat;
 
 public class ChangeRecord {
 
@@ -55,4 +56,9 @@ public class ChangeRecord {
 		this.context = context;
 	}
 
+	@Override
+	public String toString() {
+		return MessageFormat.format("{0}: local {1}, remote {2}",
+				operation.name(), localFile, remoteFileId);
+	}
 }

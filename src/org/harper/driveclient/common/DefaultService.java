@@ -2,6 +2,7 @@ package org.harper.driveclient.common;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.text.MessageFormat;
 
 import org.harper.driveclient.Services;
 import org.slf4j.Logger;
@@ -28,27 +29,29 @@ public class DefaultService {
 		return stub;
 	}
 
-	public <T> T execute(DriveRequest<T> task) {
-		long interval = 0;
+	public <T> T execute(DriveRequest<T> task) throws IOException {
+		long counter = 0;
+		long retryTime = 0;
 		while (true) {
 			try {
-				Thread.sleep(((long) (Math.pow(2, interval) - 1) * 1000));
+				Thread.sleep(retryTime);
 				return task.execute();
 			} catch (GoogleJsonResponseException e) {
-				logger.warn(
-						"Exception while executing drive task, waiting to retry",
-						e);
-				interval++;
+				retryTime = (long) Math.pow(2, counter++) * 1000;
+				logger.warn(MessageFormat.format(
+						"Exception while executing drive task, "
+								+ "waiting to retry after {0}", retryTime), e);
 			} catch (SocketTimeoutException e) {
-				logger.warn(
-						"Exception while executing drive task, waiting to retry",
-						e);
-				interval++;
+				retryTime = (long) Math.pow(2, counter++) * 1000;
+				logger.warn(MessageFormat.format(
+						"Exception while executing drive task, "
+								+ "waiting to retry after {0}", retryTime), e);
 			} catch (IOException e) {
 				logger.error("Exception while executing drive task", e);
-				throw new RuntimeException(e);
+				throw e;
 			} catch (InterruptedException e) {
 				logger.error("Exception while executing drive task", e);
+				throw new RuntimeException(e);
 			}
 		}
 	}

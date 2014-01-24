@@ -6,13 +6,16 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.harper.driveclient.Configuration;
 import org.harper.driveclient.snapshot.Snapshot;
+import org.harper.driveclient.synchronize.ChangeRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +44,7 @@ public class DefaultStorageService implements StorageService {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <T> T get(String key) {
 		lock.readLock().lock();
 		try {
@@ -58,6 +62,7 @@ public class DefaultStorageService implements StorageService {
 		lock.writeLock().unlock();
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void load() {
 		lock.writeLock().lock();
 		try {
@@ -108,13 +113,29 @@ public class DefaultStorageService implements StorageService {
 		}
 	}
 
+	protected <T> T get(String key, T defaultValue) {
+		if (null == get(key)) {
+			synchronized (storage) {
+				if (null == get(key)) {
+					put(key, defaultValue);
+				}
+			}
+		}
+		return get(key);
+	}
+
 	@Override
 	public Map<String, String> remoteToLocal() {
-		return get(REMOTE_TO_LOCAL);
+		return get(REMOTE_TO_LOCAL, new HashMap<String, String>());
 	}
 
 	@Override
 	public Map<String, String> localToRemote() {
-		return get(LOCAL_TO_REMOTE);
+		return get(LOCAL_TO_REMOTE, new HashMap<String, String>());
+	}
+
+	@Override
+	public List<ChangeRecord> failedLog() {
+		return get(FAILED_LOG, new ArrayList<ChangeRecord>());
 	}
 }
