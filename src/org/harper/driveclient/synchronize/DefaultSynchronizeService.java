@@ -113,7 +113,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 				break;
 			}
 			case LOCAL_DELETE: {
-				stub.transmit().delete(record.getRemoteFileId());
+				if (!StringUtils.isEmpty(record.getRemoteFileId()))
+					stub.transmit().delete(record.getRemoteFileId());
 				break;
 			}
 			case LOCAL_CHANGE: {
@@ -152,7 +153,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 					}
 					break;
 				}
-				if (!DriveUtils.absolutePath(record.getLocalFile()).delete()) {
+				File localFile = DriveUtils.absolutePath(record.getLocalFile());
+				deleteLocalFile(localFile);
+				if (localFile.exists()) {
 					if (logger.isDebugEnabled()) {
 						logger.debug(MessageFormat
 								.format("Failed to delete file {0}. File may have been deleted.",
@@ -225,14 +228,25 @@ public class DefaultSynchronizeService extends DefaultService implements
 				if (!DriveUtils.isDirectory(remoteChange.getFile())) {
 					String remoteName = remoteChange.getFile().getTitle();
 					String remoteMd5 = remoteChange.getFile().getMd5Checksum();
-					String localMd5 = DriveUtils.md5Checksum(DriveUtils
-							.absolutePath(local));
-					if (localMd5.equals(remoteMd5)) {
-						records.add(new ChangeRecord(Operation.REMOTE_RENAME,
-								local, remoteChange.getFileId(), remoteName));
+					File localFile = DriveUtils.absolutePath(local);
+					if (localFile.isFile()) {
+						String localMd5 = DriveUtils.md5Checksum(localFile);
+						if (localMd5.equals(remoteMd5)) {
+							// Sometimes google drive will record change even if
+							// the name and MD5 are exactly the same
+							if (!remoteName.equals(localFile.getName())) {
+								records.add(new ChangeRecord(
+										Operation.REMOTE_RENAME, local,
+										remoteChange.getFileId(), remoteName));
+							}
+						} else {
+							records.add(new ChangeRecord(
+									Operation.REMOTE_CHANGE, local,
+									remoteChange.getFileId()));
+						}
 					} else {
-						records.add(new ChangeRecord(Operation.REMOTE_CHANGE,
-								local, remoteChange.getFileId()));
+						records.add(new ChangeRecord(Operation.REMOTE_INSERT,
+								null, remoteChange.getFileId()));
 					}
 				} else {
 					// For directory just check the name change
@@ -396,5 +410,19 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 		return null;
+	}
+
+	private void deleteLocalFile(File file) {
+		if (!file.exists())
+			return;
+		// Execute a recursive delete
+		if (file.isFile()) {
+			file.delete();
+		} else {
+			for (File child : file.listFiles()) {
+				deleteLocalFile(child);
+			}
+			file.delete();
+		}
 	}
 }
