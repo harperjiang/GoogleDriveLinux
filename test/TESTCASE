@@ -1,2 +1,3 @@
+Remote delete will be treated as local insert
+
 File deleted during updating process
-Remote add files with multiple layers
