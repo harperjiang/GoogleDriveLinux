@@ -3,7 +3,7 @@ package org.harper.driveclient.storage;
 import java.util.List;
 import java.util.Map;
 
-import org.harper.driveclient.synchronize.ChangeRecord;
+import org.harper.driveclient.synchronize.FailedRecord;
 
 public interface StorageService {
 
@@ -25,5 +25,7 @@ public interface StorageService {
 
 	public Map<String, String> localToRemote();
 
-	public List<ChangeRecord> failedLog();
+	public List<FailedRecord> failedLog();
+	
+	public void persist();
 }

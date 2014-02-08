@@ -1,2 +1,3 @@
 Uploading file will not create parent folders
 The delete operation should be ordered
+REMOTE_INSERT sequence, if parent folder doesn't exist

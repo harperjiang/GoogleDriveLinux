@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.harper.driveclient.Configuration;
-import org.harper.driveclient.snapshot.Snapshot;
-import org.harper.driveclient.synchronize.ChangeRecord;
+import org.harper.driveclient.synchronize.FailedRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,14 +33,23 @@ public class DefaultStorageService implements StorageService {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
+	private Map<String, Parser> parsers;
+
 	private File persistence = new File(Configuration.getConfigFolder()
 			.getAbsolutePath() + File.separator + "storage");
 
 	public DefaultStorageService() {
 		storage = new HashMap<String, Object>();
+		installParsers();
 		lock = new ReentrantReadWriteLock();
 		load();
 		new PersistenceThread().start();
+	}
+
+	protected void installParsers() {
+		parsers = new HashMap<String, Parser>();
+		parsers.put(SNAPSHOT, new SnapshotParser());
+		parsers.put(FAILED_LOG, new FailedRecordsParser());
 	}
 
 	@Override
@@ -71,9 +80,12 @@ public class DefaultStorageService implements StorageService {
 			Reader jsonReader = new InputStreamReader(new FileInputStream(
 					persistence));
 			storage = new Gson().fromJson(jsonReader, Map.class);
-			// TODO Is there more elegant way to do this
-			storage.put(SNAPSHOT, Snapshot
-					.convert((Map<String, Object>) storage.get(SNAPSHOT)));
+			for (Entry<String, Object> entry : storage.entrySet()) {
+				Parser parser = parsers.get(entry.getKey());
+				if (null != parser) {
+					storage.put(entry.getKey(), parser.parse(entry.getValue()));
+				}
+			}
 		} catch (Exception e) {
 			// Eat it
 			logger.warn("Exception when loading storage", e);
@@ -98,6 +110,12 @@ public class DefaultStorageService implements StorageService {
 		} finally {
 			lock.readLock().unlock();
 		}
+	}
+
+	public void persist() {
+		// Force write
+		this.dirty = true;
+		store();
 	}
 
 	protected final class PersistenceThread extends Thread {
@@ -135,7 +153,11 @@ public class DefaultStorageService implements StorageService {
 	}
 
 	@Override
-	public List<ChangeRecord> failedLog() {
-		return get(FAILED_LOG, new ArrayList<ChangeRecord>());
+	public List<FailedRecord> failedLog() {
+		return get(FAILED_LOG, new ArrayList<FailedRecord>());
+	}
+
+	public static interface Parser {
+		public Object parse(Object jsonInput);
 	}
 }

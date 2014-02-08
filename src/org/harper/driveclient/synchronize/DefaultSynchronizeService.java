@@ -89,8 +89,37 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 
+		// Retry until all the errors are processed
+		while (!stub.storage().failedLog().isEmpty()) {
+			FailedRecord fr = stub.storage().failedLog().remove(0);
+			// Filter, modify and discard
+			fr = correct(fr);
+			if (fr != null) {
+				synchronize(fr);
+			}
+		}
+
 		// Save the new snapshot
-		stub.storage().put(StorageService.SNAPSHOT, stub.snapshot().make());
+		stub.storage().put(StorageService.SNAPSHOT, current);
+	}
+
+	private FailedRecord correct(FailedRecord fr) {
+		if ((fr.getOperation() == Operation.LOCAL_CHANGE || fr.getOperation() == Operation.LOCAL_RENAME)
+				&& StringUtils.isEmpty(fr.getRemoteFileId())) {
+			fr.setOperation(Operation.LOCAL_INSERT);
+		}
+		if (fr.getOperation() == Operation.LOCAL_DELETE
+				&& StringUtils.isEmpty(fr.getRemoteFileId())) {
+			return null;
+		}
+		if ((fr.getOperation() == Operation.REMOTE_INSERT
+				|| fr.getOperation() == Operation.REMOTE_CHANGE
+				|| fr.getOperation() == Operation.REMOTE_RENAME || fr
+				.getOperation() == Operation.REMOTE_DELETE)
+				&& "404".equals(fr.getError())) {
+			return null;
+		}
+		return null;
 	}
 
 	private void synchronize(ChangeRecord record) throws IOException {
@@ -113,18 +142,29 @@ public class DefaultSynchronizeService extends DefaultService implements
 				break;
 			}
 			case LOCAL_DELETE: {
-				if (!StringUtils.isEmpty(record.getRemoteFileId()))
+				if (!StringUtils.isEmpty(record.getRemoteFileId())) {
 					stub.transmit().delete(record.getRemoteFileId());
+				} else {
+					logger.warn("Local deletion has no remote reference, make sure the storage is correct.");
+				}
 				break;
 			}
 			case LOCAL_CHANGE: {
-				File local = DriveUtils.absolutePath(record.getLocalFile());
-				stub.transmit().update(record.getRemoteFileId(), local);
+				if (!StringUtils.isEmpty(record.getRemoteFileId())) {
+					File local = DriveUtils.absolutePath(record.getLocalFile());
+					stub.transmit().update(record.getRemoteFileId(), local);
+				} else {
+					logger.warn("Local change has no remote reference, make sure the storage is correct.");
+				}
 				break;
 			}
 			case LOCAL_RENAME: {
-				stub.transmit().rename(record.getRemoteFileId(),
-						(String) record.getContext()[0]);
+				if (!StringUtils.isEmpty(record.getRemoteFileId())) {
+					stub.transmit().rename(record.getRemoteFileId(),
+							(String) record.getContext()[0]);
+				} else {
+					logger.warn("Local rename has no remote reference, make sure the storage is correct.");
+				}
 				break;
 			}
 			case REMOTE_INSERT: {
@@ -201,7 +241,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 		} catch (Exception e) {
 			logger.warn(MessageFormat.format(
 					"Exception on Change {0}. Retry later", record), e);
-			stub.storage().failedLog().add(record);
+			FailedRecord fr = new FailedRecord(record);
+			fr.setError(e.getMessage());
+			stub.storage().failedLog().add(fr);
 		}
 	}
 
@@ -281,16 +323,24 @@ public class DefaultSynchronizeService extends DefaultService implements
 					.getName(), stub.storage().localToRemote()
 					.get(standard.getName())));
 		} else {
-			Map<String, Snapshot> scMd5Table = new HashMap<String, Snapshot>();
+			Map<String, List<Snapshot>> scMd5Table = new HashMap<String, List<Snapshot>>();
 			Map<String, Snapshot> scNameTable = new HashMap<String, Snapshot>();
-			Map<String, Snapshot> ccMd5Table = new HashMap<String, Snapshot>();
+			Map<String, List<Snapshot>> ccMd5Table = new HashMap<String, List<Snapshot>>();
 			Map<String, Snapshot> ccNameTable = new HashMap<String, Snapshot>();
 			for (Snapshot sc : standard.getChildren()) {
-				scMd5Table.put(sc.getMd5Checksum(), sc);
+				if (!scMd5Table.containsKey(sc.getMd5Checksum())) {
+					scMd5Table.put(sc.getMd5Checksum(),
+							new ArrayList<Snapshot>());
+				}
+				scMd5Table.get(sc.getMd5Checksum()).add(sc);
 				scNameTable.put(sc.getName(), sc);
 			}
 			for (Snapshot cc : current.getChildren()) {
-				ccMd5Table.put(cc.getMd5Checksum(), cc);
+				if (!ccMd5Table.containsKey(cc.getMd5Checksum())) {
+					ccMd5Table.put(cc.getMd5Checksum(),
+							new ArrayList<Snapshot>());
+				}
+				ccMd5Table.get(cc.getMd5Checksum()).add(cc);
 				ccNameTable.put(cc.getName(), cc);
 			}
 
@@ -319,21 +369,36 @@ public class DefaultSynchronizeService extends DefaultService implements
 				}
 			}
 			// Check files with same md5 but different names
+			// Also deal with copied files
 			List<String> newNames = new ArrayList<String>();
 			newNames.addAll(ccNameTable.keySet());
 
 			for (String newName : newNames) {
 				String md5 = ccNameTable.get(newName).getMd5Checksum();
 				if (scMd5Table.containsKey(md5)) {
-					Snapshot oldrec = scMd5Table.get(md5);
-					Snapshot newrec = ccMd5Table.get(md5);
-					changes.add(new ChangeRecord(Operation.LOCAL_RENAME, oldrec
-							.getName(), stub.storage().localToRemote()
-							.get(oldrec.getName()), DriveUtils.absolutePath(
-							newrec.getName()).getName()));
-					scNameTable.remove(oldrec.getName());
+					List<Snapshot> oldrecs = scMd5Table.get(md5);
+					List<Snapshot> newrecs = ccMd5Table.get(md5);
+					Snapshot firstOld = oldrecs.get(0);
+					while (!oldrecs.isEmpty()) {
+						Snapshot oldrec = oldrecs.remove(0);
+						Snapshot newrec = newrecs.remove(0);
+						// Rename
+						changes.add(new ChangeRecord(Operation.LOCAL_RENAME,
+								oldrec.getName(), stub.storage()
+										.localToRemote().get(oldrec.getName()),
+								DriveUtils.absolutePath(newrec.getName())
+										.getName()));
+					}
+					while (!newrecs.isEmpty()) {
+						// Copy
+						Snapshot newrec = newrecs.remove(0);
+						changes.add(new ChangeRecord(Operation.LOCAL_INSERT,
+								newrec.getName(), null));
+					}
+					scNameTable.remove(firstOld.getName());
 					ccNameTable.remove(newName);
 				}
+				// New files will be processed below
 			}
 			// Deleted files
 			for (Entry<String, Snapshot> old : scNameTable.entrySet()) {

@@ -1,6 +1,7 @@
 package org.harper.driveclient.snapshot;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -73,6 +74,11 @@ public class Snapshot implements Serializable {
 			s.addChild(convert(child));
 		}
 		return s;
+	}
+
+	@Override
+	public String toString() {
+		return MessageFormat.format("{0}:{1}", getName(), getMd5Checksum());
 	}
 
 }
