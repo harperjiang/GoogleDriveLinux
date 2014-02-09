@@ -104,9 +104,19 @@ public class DefaultSynchronizeService extends DefaultService implements
 	}
 
 	private FailedRecord correct(FailedRecord fr) {
-		if ((fr.getOperation() == Operation.LOCAL_CHANGE || fr.getOperation() == Operation.LOCAL_RENAME)
-				&& StringUtils.isEmpty(fr.getRemoteFileId())) {
-			fr.setOperation(Operation.LOCAL_INSERT);
+		if (fr.getOperation() == Operation.LOCAL_CHANGE
+				|| fr.getOperation() == Operation.LOCAL_RENAME) {
+			if (StringUtils.isEmpty(fr.getRemoteFileId())) {
+				fr.setOperation(Operation.LOCAL_INSERT);
+			}
+			if (fr.getError().startsWith("Local file doesn't exist")) {
+				return null;
+			}
+		}
+		if (fr.getOperation() == Operation.LOCAL_INSERT) {
+			if (fr.getError().startsWith("Local file doesn't exist")) {
+				return null;
+			}
 		}
 		if (fr.getOperation() == Operation.LOCAL_DELETE
 				&& StringUtils.isEmpty(fr.getRemoteFileId())) {
@@ -119,7 +129,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 				&& "404".equals(fr.getError())) {
 			return null;
 		}
-		return null;
+		return fr;
 	}
 
 	private void synchronize(ChangeRecord record) throws IOException {
