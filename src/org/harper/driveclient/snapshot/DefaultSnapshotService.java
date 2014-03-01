@@ -31,7 +31,7 @@ public class DefaultSnapshotService extends DefaultService implements
 		return make(root);
 	}
 
-	protected Snapshot make(java.io.File root) {
+	public Snapshot make(java.io.File root) {
 		if (!root.exists())
 			return null;
 		Snapshot current = new Snapshot();

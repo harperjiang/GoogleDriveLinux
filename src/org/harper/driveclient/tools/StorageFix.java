@@ -52,6 +52,15 @@ public class StorageFix {
 		if (snapshot.isFile()) {
 			return;
 		}
+		// Remove null child
+		for(int i = 0 ; i < snapshot.getChildren().size();) {
+			if(snapshot.getChildren().get(i) != null) {
+				i++;
+			} else {
+				snapshot.getChildren().remove(i);
+				logger.warn("Removing snapshot child with null value");
+			}
+		}
 		List<Snapshot> remove = new ArrayList<Snapshot>();
 		for (Snapshot child : snapshot.getChildren()) {
 			if (!localToRemote.containsKey(child.getName())

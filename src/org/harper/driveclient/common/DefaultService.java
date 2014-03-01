@@ -37,6 +37,9 @@ public class DefaultService {
 				Thread.sleep(retryTime);
 				return task.execute();
 			} catch (GoogleJsonResponseException e) {
+				if (e.getDetails().getCode() == 404) {
+					throw e;
+				}
 				retryTime = (long) Math.pow(2, counter++) * 1000;
 				logger.warn(MessageFormat.format(
 						"Exception while executing drive task, "

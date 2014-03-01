@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.harper.driveclient.Configuration;
@@ -21,6 +23,7 @@ import org.harper.driveclient.snapshot.Snapshot;
 import org.harper.driveclient.storage.StorageService;
 import org.harper.driveclient.synchronize.ChangeRecord.Operation;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.Change;
 import com.google.api.services.drive.model.ChangeList;
@@ -57,7 +60,6 @@ public class DefaultSynchronizeService extends DefaultService implements
 			stub.transmit().download(childref.getId(), localRoot);
 		}
 
-		// Make local snapshot;
 		stub.storage().put(StorageService.SNAPSHOT, stub.snapshot().make());
 	}
 
@@ -83,10 +85,40 @@ public class DefaultSynchronizeService extends DefaultService implements
 					localChange.getRemoteFileId());
 		}
 
+		PriorityQueue<ChangeRecord> orderedRemoteChanges = new PriorityQueue<ChangeRecord>(
+				50, new Comparator<ChangeRecord>() {
+					@Override
+					public int compare(ChangeRecord o1, ChangeRecord o2) {
+						if (o1.getOperation().ordinal() < o2.getOperation()
+								.ordinal()) {
+							return -1;
+						} else if (o1.getOperation().ordinal() > o2
+								.getOperation().ordinal()) {
+							return 1;
+						} else {
+							if (o1.getLocalFile() == null)
+								return -1;
+							if (o2.getLocalFile() == null)
+								return 1;
+							return o1.getLocalFile().compareTo(
+									o2.getLocalFile());
+						}
+					}
+				});
+
 		for (ChangeRecord remoteChange : remoteChanges) {
 			if (!localUploaded.containsKey(remoteChange.getLocalFile())) {
 				synchronize(remoteChange);
+				if (remoteChange.getOperation() == Operation.REMOTE_INSERT) {
+					remoteChange.setLocalFile(stub.storage().remoteToLocal()
+							.get(remoteChange.getRemoteFileId()));
+				}
+				orderedRemoteChanges.add(remoteChange);
 			}
+		}
+
+		while (!orderedRemoteChanges.isEmpty()) {
+			addToSnapshot(current, orderedRemoteChanges.poll());
 		}
 
 		// Retry until all the errors are processed
@@ -99,17 +131,115 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 
-		// Save the new snapshot
 		stub.storage().put(StorageService.SNAPSHOT, current);
+	}
+
+	private void addToSnapshot(Snapshot root, ChangeRecord remoteChange) {
+		switch (remoteChange.getOperation()) {
+		case REMOTE_INSERT:
+			String localName = stub.storage().remoteToLocal()
+					.get(remoteChange.getRemoteFileId());
+			if (StringUtils.isEmpty(localName)) {
+				// Insert failed
+				return;
+			}
+			File localFile = DriveUtils.absolutePath(localName);
+			String parent = DriveUtils.relativePath(localFile.getParentFile());
+			if (root.getName().equals(parent)) {
+				for (Snapshot sn : root.getChildren()) {
+					if (sn.getName().equals(localName))
+						return;
+				}
+				Snapshot sn = stub.snapshot().make(localFile);
+				root.addChild(sn);
+			} else {
+				for (Snapshot sn : root.getChildren()) {
+					if (parent.startsWith(sn.getName())) {
+						addToSnapshot(sn, remoteChange);
+						return;
+					}
+				}
+				// TODO the operations are not in sequence.
+				// Didn't find?
+				logger.error(MessageFormat.format(
+						"Remote change cannot find local parent {0}",
+						remoteChange));
+				throw new IllegalArgumentException();
+			}
+			break;
+		case REMOTE_CHANGE: {
+			String fileName = remoteChange.getLocalFile();
+			if (fileName.equals(root.getName())) {
+				root.setMd5Checksum((String) remoteChange.getContext()[0]);
+			} else {
+				for (Snapshot sn : root.getChildren()) {
+					if (fileName.startsWith(sn.getName())) {
+						addToSnapshot(sn, remoteChange);
+						return;
+					}
+				}
+				// Didn't find?
+				logger.error(MessageFormat.format(
+						"Remote change cannot find local parent {0}",
+						remoteChange));
+				throw new IllegalArgumentException();
+			}
+			break;
+		}
+		case REMOTE_RENAME: {
+			String fileName = remoteChange.getLocalFile();
+			if (fileName.equals(root.getName())) {
+				String newName = (String) remoteChange.getContext()[0];
+				root.setName(newName);
+			} else {
+				for (Snapshot sn : root.getChildren()) {
+					if (fileName.startsWith(sn.getName())) {
+						addToSnapshot(sn, remoteChange);
+						return;
+					}
+				}
+				// Didn't find?
+				logger.error(MessageFormat.format(
+						"Remote change cannot find local parent {0}",
+						remoteChange));
+				throw new IllegalArgumentException();
+			}
+			break;
+		}
+		case REMOTE_DELETE:
+			String fileName = remoteChange.getLocalFile();
+			if (StringUtils.isEmpty(fileName)) {
+				return;
+			}
+			for (int i = 0; i < root.getChildren().size(); i++) {
+				Snapshot sn = root.getChildren().get(i);
+				if (fileName.equals(sn.getName())) {
+					root.getChildren().remove(sn);
+					return;
+				}
+				if (fileName.startsWith(sn.getName())) {
+					addToSnapshot(sn, remoteChange);
+					return;
+				}
+			}
+			// Didn't find?
+			logger.warn(MessageFormat.format(
+					"Remote change cannot find local parent {0}", remoteChange));
+			// This means the remote change is out of date
+			break;
+		default:
+			throw new IllegalArgumentException();
+		}
 	}
 
 	private FailedRecord correct(FailedRecord fr) {
 		if (fr.getOperation() == Operation.LOCAL_CHANGE
 				|| fr.getOperation() == Operation.LOCAL_RENAME) {
-			if (StringUtils.isEmpty(fr.getRemoteFileId())) {
+			if (StringUtils.isEmpty(fr.getRemoteFileId())
+					|| StringUtils.isEmpty(fr.getError())) {
 				fr.setOperation(Operation.LOCAL_INSERT);
-			}
-			if (fr.getError().startsWith("Local file doesn't exist")) {
+			} else if (!StringUtils.isEmpty(fr.getError())
+					&& fr.getError().startsWith("Local file doesn't exist")) {
 				return null;
 			}
 		}
@@ -119,14 +249,23 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 		if (fr.getOperation() == Operation.LOCAL_DELETE
-				&& StringUtils.isEmpty(fr.getRemoteFileId())) {
+				&& (StringUtils.isEmpty(fr.getRemoteFileId()) || "404"
+						.equals(fr.getError()))) {
 			return null;
 		}
-		if ((fr.getOperation() == Operation.REMOTE_INSERT
-				|| fr.getOperation() == Operation.REMOTE_CHANGE
-				|| fr.getOperation() == Operation.REMOTE_RENAME || fr
-				.getOperation() == Operation.REMOTE_DELETE)
-				&& "404".equals(fr.getError())) {
+		if ("404".equals(fr.getError())
+				&& (fr.getOperation() == Operation.LOCAL_CHANGE
+						|| fr.getOperation() == Operation.LOCAL_DELETE || fr
+						.getOperation() == Operation.LOCAL_RENAME)) {
+			// No such file
+			fr.setOperation(Operation.LOCAL_INSERT);
+			return fr;
+		}
+		if ("404".equals(fr.getError())
+				&& (fr.getOperation() == Operation.REMOTE_INSERT
+						|| fr.getOperation() == Operation.REMOTE_CHANGE
+						|| fr.getOperation() == Operation.REMOTE_RENAME || fr
+						.getOperation() == Operation.REMOTE_DELETE)) {
 			return null;
 		}
 		return fr;
@@ -186,6 +325,20 @@ public class DefaultSynchronizeService extends DefaultService implements
 				// Depth search of parent that has a local root
 				List<ParentReference> path = new ArrayList<ParentReference>();
 				File local = pathToLocal(record.getRemoteFileId(), path);
+				if (null == local) {
+					// Check whether this file is trashed
+					com.google.api.services.drive.model.File file = drive
+							.files().get(record.getRemoteFileId()).execute();
+					if (file.getLabels().getTrashed()) {
+						return;
+					}
+					if (file.getShared()) {
+						return;
+					} else {
+						throw new IllegalArgumentException(
+								"Non-trash file has no known parent");
+					}
+				}
 				File parent = local;
 				for (ParentReference node : path) {
 					stub.transmit().download(node.getId(), parent);
@@ -193,6 +346,11 @@ public class DefaultSynchronizeService extends DefaultService implements
 							.remoteToLocal().get(node.getId()));
 				}
 				stub.transmit().download(record.getRemoteFileId(), parent);
+				record.setLocalFile(stub.storage().remoteToLocal()
+						.get(record.getRemoteFileId()));
+				if (StringUtils.isEmpty(record.getLocalFile())) {
+					break;
+				}
 				break;
 			}
 			case REMOTE_DELETE: {
@@ -204,6 +362,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 					break;
 				}
 				File localFile = DriveUtils.absolutePath(record.getLocalFile());
+				String localParent = DriveUtils.relativePath(localFile
+						.getParentFile());
+				record.setContext(new Object[] { localParent });
 				deleteLocalFile(localFile);
 				if (localFile.exists()) {
 					if (logger.isDebugEnabled()) {
@@ -234,6 +395,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 				File local = DriveUtils.absolutePath(record.getLocalFile());
 				File newName = new File(local.getParentFile().getAbsolutePath()
 						+ File.separator + (String) record.getContext()[0]);
+				String relNewName = DriveUtils.relativePath(newName);
+				record.setContext(new Object[] { relNewName });
 				local.renameTo(newName);
 				stub.storage()
 						.remoteToLocal()
@@ -252,7 +415,12 @@ public class DefaultSynchronizeService extends DefaultService implements
 			logger.warn(MessageFormat.format(
 					"Exception on Change {0}. Retry later", record), e);
 			FailedRecord fr = new FailedRecord(record);
-			fr.setError(e.getMessage());
+			if (e instanceof GoogleJsonResponseException) {
+				GoogleJsonResponseException gjre = (GoogleJsonResponseException) e;
+				fr.setError(String.valueOf(gjre.getDetails().getCode()));
+			} else {
+				fr.setError(e.getMessage());
+			}
 			stub.storage().failedLog().add(fr);
 		}
 	}
@@ -294,7 +462,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 						} else {
 							records.add(new ChangeRecord(
 									Operation.REMOTE_CHANGE, local,
-									remoteChange.getFileId()));
+									remoteChange.getFileId(), remoteChange
+											.getFile().getMd5Checksum()));
 						}
 					} else {
 						records.add(new ChangeRecord(Operation.REMOTE_INSERT,

@@ -64,6 +64,9 @@ public class Snapshot implements Serializable {
 	}
 
 	public static Snapshot convert(Map<String, Object> content) {
+		if (null == content || content.isEmpty()) {
+			return null;
+		}
 		Snapshot s = new Snapshot();
 		s.setName((String) content.get("name"));
 		s.setMd5Checksum((String) content.get("md5Checksum"));
@@ -71,7 +74,10 @@ public class Snapshot implements Serializable {
 		Collection<Map<String, Object>> children = (Collection<Map<String, Object>>) content
 				.get("children");
 		for (Map<String, Object> child : children) {
-			s.addChild(convert(child));
+			Snapshot c = convert(child);
+			if (null != c) {
+				s.addChild(c);
+			}
 		}
 		return s;
 	}
