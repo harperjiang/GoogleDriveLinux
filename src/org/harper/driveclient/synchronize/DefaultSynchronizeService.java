@@ -161,7 +161,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 				}
 				// TODO the operations are not in sequence.
 				// Didn't find?
-				logger.error(MessageFormat.format(
+				logger.warn(MessageFormat.format(
 						"Remote change cannot find local parent {0}",
 						remoteChange));
 				throw new IllegalArgumentException();
@@ -223,8 +223,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 				}
 			}
 			// Didn't find?
-			logger.warn(MessageFormat.format(
-					"Remote change cannot find local parent {0}", remoteChange));
+			logger.warn(MessageFormat
+					.format("Remote change cannot find local parent {0}, possibly caused by deleting of parent folder",
+							remoteChange));
 			// This means the remote change is out of date
 			break;
 		default:
@@ -244,7 +245,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 		}
 		if (fr.getOperation() == Operation.LOCAL_INSERT) {
-			if (fr.getError().startsWith("Local file doesn't exist")) {
+			if (!StringUtils.isEmpty(fr.getError())
+					&& fr.getError().startsWith("Local file doesn't exist")) {
 				return null;
 			}
 		}

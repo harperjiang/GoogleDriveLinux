@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveRequest;
 
@@ -35,6 +36,11 @@ public class DefaultService {
 		while (true) {
 			try {
 				Thread.sleep(retryTime);
+				if (task instanceof AbstractGoogleClientRequest) {
+					// Reset the uploader when doing retry
+					((AbstractGoogleClientRequest<T>) task).set("uploader",
+							null);
+				}
 				return task.execute();
 			} catch (GoogleJsonResponseException e) {
 				if (e.getDetails().getCode() == 404) {

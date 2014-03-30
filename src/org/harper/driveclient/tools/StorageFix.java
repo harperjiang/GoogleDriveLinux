@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.harper.driveclient.common.DriveUtils;
 import org.harper.driveclient.common.StringUtils;
 import org.harper.driveclient.snapshot.Snapshot;
 import org.harper.driveclient.storage.DefaultStorageService;
@@ -50,11 +51,16 @@ public class StorageFix {
 	protected static void check(Snapshot snapshot,
 			Map<String, String> localToRemote) {
 		if (snapshot.isFile()) {
+			if (StringUtils.isEmpty(snapshot.getMd5Checksum())) {
+				logger.warn("File with no md5 info found, correcting...");
+				snapshot.setMd5Checksum(DriveUtils.md5Checksum(DriveUtils
+						.absolutePath(snapshot.getName())));
+			}
 			return;
 		}
 		// Remove null child
-		for(int i = 0 ; i < snapshot.getChildren().size();) {
-			if(snapshot.getChildren().get(i) != null) {
+		for (int i = 0; i < snapshot.getChildren().size();) {
+			if (snapshot.getChildren().get(i) != null) {
 				i++;
 			} else {
 				snapshot.getChildren().remove(i);
