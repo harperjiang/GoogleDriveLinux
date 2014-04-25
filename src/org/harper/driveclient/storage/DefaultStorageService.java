@@ -124,6 +124,9 @@ public class DefaultStorageService implements StorageService {
 			while (true) {
 				try {
 					Thread.sleep(60000);
+					if (logger.isDebugEnabled()) {
+						logger.debug("Persisting Storage...");
+					}
 					store();
 				} catch (Exception e) {
 				}

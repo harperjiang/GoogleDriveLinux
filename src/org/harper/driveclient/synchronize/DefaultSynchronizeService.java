@@ -65,6 +65,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 
 	@Override
 	public void synchronize() throws IOException {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Synchronizing...");
+		}
 		// Detect remote change
 		List<ChangeRecord> remoteChanges = remoteChange();
 		// Detect local change
@@ -162,15 +165,17 @@ public class DefaultSynchronizeService extends DefaultService implements
 				// TODO the operations are not in sequence.
 				// Didn't find?
 				logger.warn(MessageFormat.format(
-						"Remote change cannot find local parent {0}",
+						"Remote insert cannot find local parent {0}",
 						remoteChange));
-				throw new IllegalArgumentException();
+				// throw new IllegalArgumentException();
 			}
 			break;
 		case REMOTE_CHANGE: {
 			String fileName = remoteChange.getLocalFile();
 			if (fileName.equals(root.getName())) {
-				root.setMd5Checksum((String) remoteChange.getContext()[0]);
+				com.google.api.services.drive.model.File remoteFile = remoteChange
+						.getContext(0);
+				root.setMd5Checksum(remoteFile.getMd5Checksum());
 			} else {
 				for (Snapshot sn : root.getChildren()) {
 					if (fileName.startsWith(sn.getName())) {
@@ -179,17 +184,19 @@ public class DefaultSynchronizeService extends DefaultService implements
 					}
 				}
 				// Didn't find?
-				logger.error(MessageFormat.format(
-						"Remote change cannot find local parent {0}",
-						remoteChange));
-				throw new IllegalArgumentException();
+				logger.error(MessageFormat
+						.format("Remote change cannot find local parent {0}. Should be an error.",
+								remoteChange));
+				// throw new IllegalArgumentException();
 			}
 			break;
 		}
 		case REMOTE_RENAME: {
 			String fileName = remoteChange.getLocalFile();
 			if (fileName.equals(root.getName())) {
-				String newName = (String) remoteChange.getContext()[0];
+				com.google.api.services.drive.model.File remote = remoteChange
+						.getContext(0);
+				String newName = remote.getTitle();
 				root.setName(newName);
 			} else {
 				for (Snapshot sn : root.getChildren()) {
@@ -199,10 +206,10 @@ public class DefaultSynchronizeService extends DefaultService implements
 					}
 				}
 				// Didn't find?
-				logger.error(MessageFormat.format(
-						"Remote change cannot find local parent {0}",
-						remoteChange));
-				throw new IllegalArgumentException();
+				logger.error(MessageFormat
+						.format("Remote rename cannot find local corresponding {0}, should be an error",
+								remoteChange));
+				// throw new IllegalArgumentException();
 			}
 			break;
 		}
@@ -224,7 +231,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 			// Didn't find?
 			logger.warn(MessageFormat
-					.format("Remote change cannot find local parent {0}, possibly caused by deleting of parent folder",
+					.format("Remote change cannot find local corresponding {0}, possibly caused by deleting of parent folder",
 							remoteChange));
 			// This means the remote change is out of date
 			break;
@@ -306,6 +313,10 @@ public class DefaultSynchronizeService extends DefaultService implements
 					stub.transmit().update(record.getRemoteFileId(), local);
 				} else {
 					logger.warn("Local change has no remote reference, make sure the storage is correct.");
+					logger.warn("Trying to insert the new record");
+					// Modify it to a local insert
+					record.setOperation(Operation.LOCAL_INSERT);
+					synchronize(record);
 				}
 				break;
 			}
@@ -315,6 +326,10 @@ public class DefaultSynchronizeService extends DefaultService implements
 							(String) record.getContext()[0]);
 				} else {
 					logger.warn("Local rename has no remote reference, make sure the storage is correct.");
+					logger.warn("Trying to insert the new record");
+					// Modify it to be a local insert
+					record.setOperation(Operation.LOCAL_INSERT);
+					synchronize(record);
 				}
 				break;
 			}
@@ -324,13 +339,14 @@ public class DefaultSynchronizeService extends DefaultService implements
 					// This file/folder already had been created
 					break;
 				}
+				com.google.api.services.drive.model.File file = record
+						.getContext(0);
+
 				// Depth search of parent that has a local root
 				List<ParentReference> path = new ArrayList<ParentReference>();
 				File local = pathToLocal(record.getRemoteFileId(), path);
 				if (null == local) {
 					// Check whether this file is trashed
-					com.google.api.services.drive.model.File file = drive
-							.files().get(record.getRemoteFileId()).execute();
 					if (file.getLabels().getTrashed()) {
 						return;
 					}
@@ -366,7 +382,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 				File localFile = DriveUtils.absolutePath(record.getLocalFile());
 				String localParent = DriveUtils.relativePath(localFile
 						.getParentFile());
-				record.setContext(new Object[] { localParent });
+				// Preserve the original context
+				record.setContext(new Object[] { record.getContext(0),
+						localParent });
 				deleteLocalFile(localFile);
 				if (localFile.exists()) {
 					if (logger.isDebugEnabled()) {
@@ -382,8 +400,10 @@ public class DefaultSynchronizeService extends DefaultService implements
 			case REMOTE_CHANGE: {
 				File local = DriveUtils.absolutePath(record.getLocalFile());
 				File localParent = local.getParentFile();
-				if (!execute(drive.files().get(record.getRemoteFileId()))
-						.getTitle().equals(local.getName())) {
+				com.google.api.services.drive.model.File remote = record
+						.getContext(0);
+
+				if (!remote.getTitle().equals(local.getName())) {
 					local.delete();
 					stub.storage().localToRemote()
 							.remove(record.getLocalFile());
@@ -395,10 +415,14 @@ public class DefaultSynchronizeService extends DefaultService implements
 			}
 			case REMOTE_RENAME: {
 				File local = DriveUtils.absolutePath(record.getLocalFile());
+				com.google.api.services.drive.model.File remote = record
+						.getContext(0);
+				String remoteName = remote.getTitle();
 				File newName = new File(local.getParentFile().getAbsolutePath()
-						+ File.separator + (String) record.getContext()[0]);
+						+ File.separator + remoteName);
 				String relNewName = DriveUtils.relativePath(newName);
-				record.setContext(new Object[] { relNewName });
+				record.setContext(new Object[] { record.getContext()[0],
+						relNewName });
 				local.renameTo(newName);
 				stub.storage()
 						.remoteToLocal()
@@ -438,16 +462,17 @@ public class DefaultSynchronizeService extends DefaultService implements
 					.get(remoteChange.getFileId());
 			if (remoteChange.getDeleted()) {
 				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
-						remoteChange.getFileId()));
+						remoteChange.getFileId(), remoteChange.getFile()));
 			} else if (remoteChange.getFile().getLabels().getTrashed()) {
 				records.add(new ChangeRecord(Operation.REMOTE_DELETE, local,
-						remoteChange.getFileId()));
+						remoteChange.getFileId(), remoteChange.getFile()));
 			} else if (StringUtils.isEmpty(local)) {
 				// Cannot find this file, should be new
 				records.add(new ChangeRecord(Operation.REMOTE_INSERT, null,
-						remoteChange.getFileId()));
+						remoteChange.getFileId(), remoteChange.getFile()));
 			} else {
-				if (!DriveUtils.isDirectory(remoteChange.getFile())) {
+				if (!DriveUtils.isDirectory(remoteChange.getFile())
+						&& !DriveUtils.isGoogleDoc(remoteChange.getFile())) {
 					String remoteName = remoteChange.getFile().getTitle();
 					String remoteMd5 = remoteChange.getFile().getMd5Checksum();
 					File localFile = DriveUtils.absolutePath(local);
@@ -459,17 +484,19 @@ public class DefaultSynchronizeService extends DefaultService implements
 							if (!remoteName.equals(localFile.getName())) {
 								records.add(new ChangeRecord(
 										Operation.REMOTE_RENAME, local,
-										remoteChange.getFileId(), remoteName));
+										remoteChange.getFileId(), remoteChange
+												.getFile()));
 							}
 						} else {
 							records.add(new ChangeRecord(
 									Operation.REMOTE_CHANGE, local,
 									remoteChange.getFileId(), remoteChange
-											.getFile().getMd5Checksum()));
+											.getFile()));
 						}
 					} else {
 						records.add(new ChangeRecord(Operation.REMOTE_INSERT,
-								null, remoteChange.getFileId()));
+								null, remoteChange.getFileId(), remoteChange
+										.getFile()));
 					}
 				} else {
 					// For directory just check the name change
@@ -477,7 +504,8 @@ public class DefaultSynchronizeService extends DefaultService implements
 					String localName = DriveUtils.absolutePath(local).getName();
 					if (!remoteName.equals(localName)) {
 						records.add(new ChangeRecord(Operation.REMOTE_RENAME,
-								local, remoteChange.getFileId(), remoteName));
+								local, remoteChange.getFileId(), remoteChange
+										.getFile()));
 					}
 				}
 			}
@@ -634,6 +662,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 		return lastChange;
 	}
 
+	/*
+	 * Depth first search for a parent that corresponds a local file
+	 */
 	private File pathToLocal(String remoteFileId, List<ParentReference> path)
 			throws IOException {
 		List<ParentReference> pRefs = drive.parents().list(remoteFileId)

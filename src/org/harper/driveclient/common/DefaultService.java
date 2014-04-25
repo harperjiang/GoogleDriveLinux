@@ -56,11 +56,11 @@ public class DefaultService {
 						"Exception while executing drive task, "
 								+ "waiting to retry after {0}", retryTime), e);
 			} catch (IOException e) {
+				retryTime = (long) Math.pow(2, counter++) * 1000;
 				logger.error("Exception while executing drive task", e);
-				throw e;
 			} catch (InterruptedException e) {
+				retryTime = (long) Math.pow(2, counter++) * 1000;
 				logger.error("Exception while executing drive task", e);
-				throw new RuntimeException(e);
 			}
 		}
 	}

@@ -82,10 +82,8 @@ public class DefaultTransmitService extends DefaultService implements
 				}
 			}
 		} else if (DriveUtils.isGoogleDoc(remoteFile)) {
-			path = path + Constants.EXTENSION_GDOCS;
-			FileOutputStream fos = new FileOutputStream(path);
-			fos.write(remoteFile.getDefaultOpenWithLink().getBytes());
-			fos.close();
+			// Ignore google doc files
+			return;
 		} else {
 			// Normal file
 			String downloadUrl = remoteFile.getDownloadUrl();

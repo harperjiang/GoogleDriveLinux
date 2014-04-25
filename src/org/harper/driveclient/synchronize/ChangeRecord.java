@@ -52,6 +52,10 @@ public class ChangeRecord {
 		return context;
 	}
 
+	public <T> T getContext(int index) {
+		return (T) context[index];
+	}
+
 	public void setContext(Object[] context) {
 		this.context = context;
 	}
