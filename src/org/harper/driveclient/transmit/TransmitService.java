@@ -5,7 +5,14 @@ import java.io.IOException;
 
 public interface TransmitService {
 
-	public void upload(String remoteFolder, File localFile) throws IOException;
+	/**
+	 * 
+	 * @param remoteFolder
+	 * @param localFile
+	 * @return The remote file id for the newly inserted file
+	 * @throws IOException
+	 */
+	public String upload(String remoteFolder, File localFile) throws IOException;
 
 	public void download(String fileId, File localFolder) throws IOException;
 

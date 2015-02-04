@@ -1,3 +1,7 @@
+2015-02-04
+Manually create a local folder and create some files in it will lead to duplicated folder creation on Google Drive
+
+
 Uploading file will not create parent folders
 The delete operation should be ordered
 REMOTE_INSERT sequence, if parent folder doesn't exist

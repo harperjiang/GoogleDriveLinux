@@ -51,6 +51,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 				new HashMap<String, String>());
 		String remoteRoot = Constants.FOLDER_ROOT;
 		java.io.File localRoot = Configuration.getLocalRoot();
+		if (!localRoot.exists()) {
+			localRoot.mkdirs();
+		}
 		String localRelative = DriveUtils.relativePath(localRoot);
 		stub.storage().remoteToLocal().put(remoteRoot, localRelative);
 		stub.storage().localToRemote().put(localRelative, remoteRoot);
@@ -193,11 +196,13 @@ public class DefaultSynchronizeService extends DefaultService implements
 		}
 		case REMOTE_RENAME: {
 			String fileName = remoteChange.getLocalFile();
-			if (fileName.equals(root.getName())) {
-				com.google.api.services.drive.model.File remote = remoteChange
-						.getContext(0);
-				String newName = remote.getTitle();
-				root.setName(newName);
+
+			if (root.getName().startsWith(fileName)) {
+				String newName = remoteChange.getContext(1);
+				root.setName(root.getName().replaceFirst(fileName, newName));
+				for (Snapshot sn : root.getChildren()) {
+					addToSnapshot(sn, remoteChange);
+				}
 			} else {
 				for (Snapshot sn : root.getChildren()) {
 					if (fileName.startsWith(sn.getName())) {
@@ -295,7 +300,9 @@ public class DefaultSynchronizeService extends DefaultService implements
 					// already have a mapping.
 					// The insert operation will be accomplished by the topmost
 					// folder
-					stub.transmit().upload(remoteParent, local);
+					String remoteId = stub.transmit().upload(remoteParent,
+							local);
+					record.setRemoteFileId(remoteId);
 				}
 				break;
 			}

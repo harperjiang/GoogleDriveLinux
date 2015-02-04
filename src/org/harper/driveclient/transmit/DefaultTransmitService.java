@@ -128,7 +128,7 @@ public class DefaultTransmitService extends DefaultService implements
 	}
 
 	@Override
-	public void upload(String remoteFolder, java.io.File localFile)
+	public String upload(String remoteFolder, java.io.File localFile)
 			throws IOException {
 		String remoteFileId = null;
 		if (!localFile.exists()) {
@@ -168,15 +168,15 @@ public class DefaultTransmitService extends DefaultService implements
 			if (extPoint != -1) {
 				extension = localFile.getName().substring(extPoint + 1);
 				Extension ext = Extension.match(extension);
-				if (ext != null)
+				if (ext != null) {
 					file.setMimeType(ext.getType().fullName());
-				else {
-					logger.warn(MessageFormat.format(
-							"Unrecognized Extension:{0},use default mimetype",
-							extension));
-					file.setMimeType(MimeType.application_octet_stream
-							.fullName());
 				}
+			}
+			if (StringUtils.isEmpty(file.getMimeType())) {
+				logger.warn(MessageFormat.format(
+						"Unrecognized Extension:{0},use default mimetype",
+						extension));
+				file.setMimeType(MimeType.application_octet_stream.fullName());
 			}
 			File remoteFile = execute(drive.files().insert(file,
 					new FileContent(file.getMimeType(), localFile)));
@@ -186,6 +186,7 @@ public class DefaultTransmitService extends DefaultService implements
 		String relativePath = DriveUtils.relativePath(localFile);
 		stub.storage().remoteToLocal().put(remoteFileId, relativePath);
 		stub.storage().localToRemote().put(relativePath, remoteFileId);
+		return remoteFileId;
 	}
 
 	@Override

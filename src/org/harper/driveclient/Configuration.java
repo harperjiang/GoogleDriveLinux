@@ -4,10 +4,13 @@ import java.io.File;
 
 public class Configuration {
 
+//	private static File localRoot = new File("/home/harper/GDriveTest");
+	
 	private static File localRoot = new File("/home/harper/GoogleDrive");
-
+	
 	public static File getConfigFolder() {
 		return new File(System.getProperty("user.home"), ".google_drive_client");
+//		return new File(System.getProperty("user.home"), ".gdrive_test");
 	}
 
 	public static File getLocalRoot() {
@@ -20,5 +23,6 @@ public class Configuration {
 
 	public static long getCheckInterval() {
 		return 600000;
+//		return 10000;
 	}
 }
