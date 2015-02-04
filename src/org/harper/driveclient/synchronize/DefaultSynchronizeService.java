@@ -185,7 +185,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 				}
 				// Didn't find?
 				logger.error(MessageFormat
-						.format("Remote change cannot find local parent {0}. Should be an error.",
+						.format("Local root doesn't contain this file {0}. Should be an error.",
 								remoteChange));
 				// throw new IllegalArgumentException();
 			}
