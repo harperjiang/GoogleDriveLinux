@@ -8,7 +8,7 @@ public class Main {
 
 	public static void main(String[] args) throws Exception {
 		Drive drive = DriveClientFactory.createDrive();
-		Services service = new Services(drive);
+		Services service = Services.createServices(drive);
 
 		while (true) {
 			if (null == service.storage().get(StorageService.REMOTE_CHANGE)) {

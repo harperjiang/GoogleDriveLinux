@@ -12,7 +12,7 @@ import org.harper.driveclient.transmit.TransmitService;
 import com.google.api.services.drive.Drive;
 
 public class Services {
-	
+
 	private Drive drive;
 
 	public Services(Drive drive) {
@@ -35,5 +35,20 @@ public class Services {
 
 	public StorageService storage() {
 		return storageService;
+	}
+
+	public Drive getDrive() {
+		return drive;
+	}
+	
+	private static Services instance;
+
+	public static Services createServices(Drive drive) {
+		instance = new Services(drive);
+		return instance;
+	}
+
+	public static Services getServices() {
+		return instance;
 	}
 }

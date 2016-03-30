@@ -1,16 +1,12 @@
 package org.harper.driveclient.synchronize;
 
-public class FailedRecord extends ChangeRecord {
+public class FailedRecord {
 
-	public FailedRecord(Operation operation, String localPath,
-			String remoteFileId, Object[] context) {
-		super(operation, localPath, remoteFileId, context);
+	public FailedRecord(Operation operation) {
+		this.operation = operation;
 	}
 
-	public FailedRecord(ChangeRecord record) {
-		this(record.getOperation(), record.getLocalFile(), record
-				.getRemoteFileId(), record.getContext());
-	}
+	private Operation operation;
 
 	private String error;
 
@@ -20,6 +16,15 @@ public class FailedRecord extends ChangeRecord {
 
 	public void setError(String error) {
 		this.error = error;
+	}
+
+	public Operation getOperation() {
+		return operation;
+	}
+
+	public void setOperation(Operation operation) {
+		this.operation = operation;
+
 	}
 
 }
