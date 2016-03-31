@@ -8,6 +8,7 @@ import java.util.List;
 import org.harper.driveclient.Configuration;
 import org.harper.driveclient.Services;
 import org.harper.driveclient.common.DriveUtils;
+import org.harper.driveclient.snapshot.Snapshot;
 import org.harper.driveclient.synchronize.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,5 +116,17 @@ public abstract class AbstractOperation implements Operation {
 			}
 			file.delete();
 		}
+	}
+
+	protected Snapshot find(Snapshot root, String name) {
+		if (root.getName().equals(name)) {
+			return root;
+		}
+		for (Snapshot child : root.getChildren()) {
+			if (name.startsWith(child.getName())) {
+				return find(child, name);
+			}
+		}
+		return null;
 	}
 }

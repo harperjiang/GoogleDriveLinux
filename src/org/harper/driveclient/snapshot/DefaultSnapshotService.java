@@ -35,33 +35,7 @@ public class DefaultSnapshotService extends DefaultService implements
 		if (!root.exists())
 			return null;
 		Snapshot current = new Snapshot();
-		current.setName(DriveUtils.relativePath(root));
-		if (root.isDirectory()) {
-			current.setFile(false);
-			java.io.File[] children = root.listFiles();
-			if (children != null) {
-				for (java.io.File child : children) {
-					current.addChild(make(child));
-				}
-			}
-			// Sort children in alphabet order, and calculate the md5 of parent
-			Map<String, String> md5s = new HashMap<String, String>();
-			PriorityQueue<String> sort = new PriorityQueue<String>();
-			for (Snapshot sc : current.getChildren()) {
-				md5s.put(sc.getName(), sc.getMd5Checksum());
-				sort.offer(sc.getName());
-			}
-			StringBuilder sb = new StringBuilder();
-			while (!sort.isEmpty()) {
-				String name = sort.poll();
-				sb.append(MessageFormat.format("{0}:{1};", name, md5s.get(name)));
-			}
-			current.setMd5Checksum(DriveUtils.md5Checksum(sb.toString()));
-		} else {
-			current.setFile(true);
-			current.setMd5Checksum(DriveUtils.md5Checksum(root));
-		}
+		current.make(root);
 		return current;
 	}
-
 }

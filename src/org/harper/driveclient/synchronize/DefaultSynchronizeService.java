@@ -28,6 +28,7 @@ import org.harper.driveclient.synchronize.operation.LocalRename;
 import org.harper.driveclient.synchronize.operation.RemoteChange;
 import org.harper.driveclient.synchronize.operation.RemoteDelete;
 import org.harper.driveclient.synchronize.operation.RemoteInsert;
+import org.harper.driveclient.synchronize.operation.RemoteMove;
 import org.harper.driveclient.synchronize.operation.RemoteRename;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -141,7 +142,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 				synchronize(fr.getOperation());
 			}
 		}
-
+		current.update();
 		stub.storage().put(StorageService.SNAPSHOT, current);
 	}
 
@@ -236,6 +237,20 @@ public class DefaultSynchronizeService extends DefaultService implements
 								records.add(new RemoteRename(local,
 										remoteChange.getFileId(), remoteChange
 												.getFile()));
+							} else {
+								// Handle file movement, aka change of parent
+								String localParent = localFile.getParent();
+								String originRemoteId = getStub().storage()
+										.localToRemote().get(localParent);
+								String remoteId = remoteChange.getFile()
+										.getParents().get(0).getId();
+								if (originRemoteId != null
+										&& !originRemoteId.equals(remoteId)) {
+									// Moved
+									records.add(new RemoteMove(local,
+											remoteChange.getFileId(),
+											remoteChange.getFile()));
+								}
 							}
 						} else {
 							records.add(new RemoteChange(local, remoteChange
@@ -245,6 +260,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 						records.add(new RemoteInsert(null, remoteChange
 								.getFileId(), remoteChange.getFile()));
 					}
+
 				} else {
 					// For directory check the name change and parent change
 					String remoteName = remoteChange.getFile().getTitle();
@@ -265,11 +281,7 @@ public class DefaultSynchronizeService extends DefaultService implements
 						if (stub.storage().remoteToLocal()
 								.containsKey(newParentRemoteId)) {
 							// Moved to existing parent
-							// TODO For simplicity just implement to be DELETE
-							// and INSERT
-							records.add(new RemoteDelete(local, remoteChange
-									.getFileId(), remoteChange.getFile()));
-							records.add(new RemoteInsert(null, remoteChange
+							records.add(new RemoteMove(local, remoteChange
 									.getFileId(), remoteChange.getFile()));
 						} else {
 							// The parent itself is new, insertion for the

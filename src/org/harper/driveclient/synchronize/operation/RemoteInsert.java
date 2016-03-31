@@ -24,7 +24,7 @@ public class RemoteInsert extends AbstractOperation {
 	public RemoteInsert(Operation another) {
 		super("REMOTE_INSERT", another);
 	}
-	
+
 	@Override
 	public void execute() throws IOException {
 		if (Services.getServices().storage().remoteToLocal()
@@ -75,26 +75,13 @@ public class RemoteInsert extends AbstractOperation {
 			// Remote insert caused by local upload, only update snapshot
 			File localFile = DriveUtils.absolutePath(localName);
 			String parent = DriveUtils.relativePath(localFile.getParentFile());
-			if (root.getName().equals(parent)) {
-				for (Snapshot sn : root.getChildren()) {
-					if (sn.getName().equals(localName))
-						return;
-				}
-				Snapshot sn = Services.getServices().snapshot().make(localFile);
-				root.addChild(sn);
-			} else {
-				for (Snapshot sn : root.getChildren()) {
-					if (parent.startsWith(sn.getName())) {
-						updateSnapshot(sn);
-						return;
-					}
-				}
-				// TODO the operations are not in sequence.
-				// Didn't find?
-				logger.warn(MessageFormat.format(
-						"Remote insert cannot find local parent {0}", this));
-				// throw new IllegalArgumentException();
-			}
+			if (find(root, localName) != null)
+				return;
+			Snapshot parentsn = find(root, parent);
+
+			Snapshot sn = Services.getServices().snapshot().make(localFile);
+			parentsn.addChild(sn);
+			parentsn.setDirty(true);
 		}
 
 	}

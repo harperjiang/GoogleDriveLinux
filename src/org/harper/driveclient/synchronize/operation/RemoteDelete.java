@@ -52,23 +52,10 @@ public class RemoteDelete extends AbstractOperation {
 		if (StringUtils.isEmpty(fileName)) {
 			return;
 		}
-		for (int i = 0; i < root.getChildren().size(); i++) {
-			Snapshot sn = root.getChildren().get(i);
-			if (fileName.equals(sn.getName())) {
-				root.getChildren().remove(sn);
-				return;
-			}
-			if (fileName.startsWith(sn.getName())) {
-				updateSnapshot(sn);
-				;
-				return;
-			}
-		}
-		// Didn't find?
-		logger.warn(MessageFormat
-				.format("Remote change cannot find local corresponding {0}, possibly caused by deleting of parent folder",
-						this));
-		// This means the remote change is out of date
+		Snapshot find = find(root, fileName);
+		Snapshot parent = find.getParent();
+		parent.getChildren().remove(find);
+		parent.setDirty(true);
 	}
 
 }

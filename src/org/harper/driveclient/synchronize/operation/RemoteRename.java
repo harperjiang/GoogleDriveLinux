@@ -11,6 +11,8 @@ import org.harper.driveclient.synchronize.Operation;
 
 public class RemoteRename extends AbstractOperation {
 
+	private String newName;
+
 	public RemoteRename(String localPath, String remoteFileId,
 			Object... context) {
 		super("REMOTE_RENAME", localPath, remoteFileId, context);
@@ -45,6 +47,7 @@ public class RemoteRename extends AbstractOperation {
 		if (root.getName().startsWith(fileName)) {
 			String newName = getContext(1);
 			root.setName(root.getName().replaceFirst(fileName, newName));
+			root.setDirty(true);
 			for (Snapshot sn : root.getChildren()) {
 				updateSnapshot(sn);
 			}
@@ -59,7 +62,6 @@ public class RemoteRename extends AbstractOperation {
 			logger.error(MessageFormat
 					.format("Remote rename cannot find local corresponding {0}, should be an error",
 							this));
-			// throw new IllegalArgumentException();
 		}
 	}
 

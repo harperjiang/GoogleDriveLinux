@@ -15,7 +15,7 @@ public class RemoteChange extends AbstractOperation {
 			Object... context) {
 		super("REMOTE_CHANGE", localPath, remoteFileId, context);
 	}
-	
+
 	public RemoteChange(Operation another) {
 		super("REMOTE_CHANGE", another);
 	}
@@ -40,22 +40,10 @@ public class RemoteChange extends AbstractOperation {
 	@Override
 	public void updateSnapshot(Snapshot root) {
 		String fileName = getLocalFile();
-		if (fileName.equals(root.getName())) {
-			com.google.api.services.drive.model.File remoteFile = getContext(0);
-			root.setMd5Checksum(remoteFile.getMd5Checksum());
-		} else {
-			for (Snapshot sn : root.getChildren()) {
-				if (fileName.startsWith(sn.getName())) {
-					updateSnapshot(sn);
-					return;
-				}
-			}
-			// Didn't find?
-			logger.error(MessageFormat
-					.format("Local root doesn't contain this file {0}. Should be an error.",
-							this));
-			// throw new IllegalArgumentException();
-		}
+		Snapshot old = find(root, fileName);
+		com.google.api.services.drive.model.File remoteFile = getContext(0);
+		old.setMd5Checksum(remoteFile.getMd5Checksum());
+		old.setDirty(true);
 	}
 
 }
