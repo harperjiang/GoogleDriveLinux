@@ -5,3 +5,8 @@ Manually create a local folder and create some files in it will lead to duplicat
 Uploading file will not create parent folders
 The delete operation should be ordered
 REMOTE_INSERT sequence, if parent folder doesn't exist
+
+2016-02-20
+REMOTE_RENAME if local file not found, will not do anything (should create new file)
+
+If remote rename folder and move to other place, local folder will be wrong

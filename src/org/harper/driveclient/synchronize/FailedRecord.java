@@ -14,6 +14,8 @@ public class FailedRecord extends ChangeRecord {
 
 	private String error;
 
+	private int retryCount = 0;
+
 	public String getError() {
 		return error;
 	}
@@ -22,4 +24,11 @@ public class FailedRecord extends ChangeRecord {
 		this.error = error;
 	}
 
+	public int getRetryCount() {
+		return retryCount;
+	}
+
+	public void increaseRetryCount() {
+		retryCount++;
+	}
 }
