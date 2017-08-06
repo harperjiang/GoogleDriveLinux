@@ -10,6 +10,7 @@ import org.harper.driveclient.shell.Cd;
 import org.harper.driveclient.shell.Command;
 import org.harper.driveclient.shell.Exit;
 import org.harper.driveclient.shell.List;
+import org.harper.driveclient.shell.Mkdir;
 import org.harper.driveclient.shell.Pwd;
 import org.harper.driveclient.shell.Resume;
 import org.harper.driveclient.shell.Upload;
@@ -90,6 +91,8 @@ public class Shell {
 			return new Pwd();
 		case "cd":
 			return new Cd(input);
+		case "mkdir":
+			return new Mkdir(input);
 		case "upload":
 			return new Upload(input);
 		case "resume":

@@ -21,7 +21,7 @@ public class Cd extends Command {
 		if (inputs.length < 1) {
 			return;
 		}
-		switch (inputs[1]) {
+		switch (FileOprs.escape(inputs[1])) {
 		case "..":
 			if (!Constants.FOLDER_ROOT.equals(shell.getCurrentFolder())) {
 				shell.setCurrentFolder(getParent(shell.getDrive(), shell.getCurrentFolder()));
