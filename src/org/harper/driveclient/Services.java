@@ -12,7 +12,7 @@ import org.harper.driveclient.transmit.TransmitService;
 import com.google.api.services.drive.Drive;
 
 public class Services {
-	
+
 	private Drive drive;
 
 	public Services(Drive drive) {
@@ -31,9 +31,11 @@ public class Services {
 		return new DefaultTransmitService(drive, this);
 	}
 
-	private StorageService storageService = new DefaultStorageService();
+	private StorageService storageService = null;
 
 	public StorageService storage() {
+		if (null == storageService)
+			storageService = new DefaultStorageService();
 		return storageService;
 	}
 }
